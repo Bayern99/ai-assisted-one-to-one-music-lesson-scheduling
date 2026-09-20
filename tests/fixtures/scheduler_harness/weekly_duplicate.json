@@ -1,0 +1,22 @@
+[
+  {
+    "Student Name": "Student 0001",
+    "Student No": "S1",
+    "Instructor": "Instructor 0001",
+    "Study Year": "1",
+    "Course Code": "MUS101 (Piano)",
+    "Day of Week": "Monday",
+    "Class Time": "09:00-10:00",
+    "Preferred Venue": "R101"
+  },
+  {
+    "Student Name": "Student 0001 Duplicate",
+    "Student No": "S1",
+    "Instructor": "Instructor 0001",
+    "Study Year": "1",
+    "Course Code": "MUS101 (Piano)",
+    "Day of Week": "Monday",
+    "Class Time": "10:00-11:00",
+    "Preferred Venue": "R101"
+  }
+]

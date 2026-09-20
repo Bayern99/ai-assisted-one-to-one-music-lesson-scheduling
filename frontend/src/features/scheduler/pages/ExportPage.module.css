@@ -1,0 +1,251 @@
+/* Export page scheduler styles. */
+.exportLoading {
+  min-height:360px;
+  padding:18px;
+  color:var(--muted-readable);
+  border:1px solid var(--structure);
+  border-radius:var(--radius-sm);
+  background:var(--surface);
+  font-family:var(--font-mono);
+  font-size:calc(11px + var(--text-size-offset));
+}
+.warningLedger {
+  padding:11px 14px;
+  border-left:3px solid var(--accent);
+  background:var(--accent-soft);
+}
+.warningLedger ul {
+  margin:6px 0 0;
+  padding-left:18px;
+}
+.exportLedger div:first-child {
+  padding-left:0;
+  border-left:0;
+}
+.exportLedger dt {
+  color:color-mix(in srgb, var(--muted) 88%, var(--ink));
+  font-size:calc(10.5px + var(--text-size-offset));
+  text-transform:uppercase;
+  letter-spacing:.03em;
+}
+.exportLedger dd {
+  margin:3px 0 0;
+  overflow-wrap:anywhere;
+  font-weight:700;
+}
+.artifactLink {
+  min-height:var(--control-height);
+  display:inline-flex;
+  align-items:center;
+  color:var(--ink);
+  font-weight:700;
+  text-underline-offset:3px;
+}
+.roundRail h2 {
+  margin:0;
+  font-size:calc(16px + var(--text-size-offset));
+}
+.roundRail p {
+  margin:0;
+  margin-top:4px;
+  color:color-mix(in srgb, var(--muted) 88%, var(--ink));
+  font-size:calc(12px + var(--text-size-offset));
+}
+@media (max-height: 760px) {
+  .exportPage {
+    gap:10px;
+  }
+  .exportPage .exportActionRail {
+    min-height:48px;
+    padding-bottom:8px;
+  }
+  .exportPage .warningLedger {
+    padding-block:7px;
+  }
+  .exportPage .exportLedger div {
+    padding-block:7px;
+  }
+  .exportSection .exportSectionHeading {
+    margin-bottom:8px;
+  }
+  .exportSection .exportTableFrame th {
+    padding-block:5px;
+  }
+  .exportSection .exportTableFrame td {
+    padding-block:5px;
+  }
+  .exportPage .roundRail {
+    min-height:52px;
+    padding-top:8px;
+  }
+}
+.failedAssignmentsFrame {
+  max-height:190px;
+}
+.failedAssignmentsFrame table {
+  min-width:720px;
+}
+.exportMain .warningLedger {
+  margin:12px 16px;
+}
+.exportMain .exportInlineError {
+  margin:12px 16px;
+}
+.exportMain .exportCanonicalPreview {
+  max-height:240px;
+}
+.exportInspector>.exportInspectorHeading {
+  margin-bottom:12px;
+}
+.exportInspector .exportLedger div {
+  display:grid;
+  grid-template-columns:92px minmax(0, 1fr);
+  gap:10px;
+  padding:9px 0;
+  border-top:1px solid var(--structure);
+}
+.exportInspector .exportLedger dt {
+  color:var(--muted-readable);
+  font-size:calc(11px + var(--text-size-offset));
+}
+.exportInspector .exportLedger dd {
+  min-width:0;
+  margin:0;
+  overflow-wrap:anywhere;
+  font-size:calc(11px + var(--text-size-offset));
+}
+.exportInspector .roundRail h2 {
+  margin:0;
+  font-size:calc(13px + var(--text-size-offset));
+}
+.exportInspector .roundRail p {
+  margin:4px 0 0;
+  color:var(--muted-readable);
+  font-size:calc(11.5px + var(--text-size-offset));
+}
+.exportInspector .exportInlineError {
+  margin-top:12px;
+}
+.exportMain .exportSectionHeading h2 {
+  font-family:var(--font-display);
+  font-size:var(--workspace-heading-size);
+  font-weight:500;
+  letter-spacing:-.025em;
+}
+.emptyOperation p {
+  color:color-mix(in srgb, var(--muted) 82%, var(--ink));
+  margin:4px 0 0;
+  font-size:calc(10.5px + var(--text-size-offset));
+}
+.emptyOperation h2 {
+  margin:0;
+  color:var(--ink);
+  letter-spacing:-0.01em;
+  font-size:calc(14px + var(--text-size-offset));
+}
+.exportLedger div {
+  min-width:0;
+  border-left:1px solid var(--structure);
+  padding:7px 10px;
+}
+.exportSection .exportCanonicalPreview {
+  max-height:150px;
+}
+.emptyOperation {
+  padding-top:4px;
+  border-block:1px solid var(--structure);
+  min-width:0;
+  overflow:hidden;
+  border:1px solid var(--structure-strong);
+  background:var(--raised);
+  padding:18px 14px;
+  border-radius:0;
+  box-shadow:none;
+}
+.exportLedger {
+  display:grid;
+  border-block:1px solid var(--structure);
+  min-width:0;
+  padding:14px;
+  overflow:hidden;
+  border:1px solid var(--structure-strong);
+  background:var(--raised);
+  grid-template-columns:90px minmax(180px, 1fr) 130px 150px;
+  margin:0;
+  border-radius:0;
+  box-shadow:none;
+}
+.exportSection {
+  min-width:0;
+  padding:14px;
+  overflow:hidden;
+  border:1px solid var(--structure-strong);
+  background:var(--raised);
+  padding-top:12px;
+  border-radius:0;
+  box-shadow:none;
+}
+.roundRail {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:24px;
+  border-top:1px solid var(--structure);
+  min-width:0;
+  padding:14px;
+  overflow:hidden;
+  border:1px solid var(--structure-strong);
+  background:var(--raised);
+  min-height:58px;
+  padding-top:12px;
+  border-radius:0;
+  box-shadow:none;
+}
+.exportWorkbench {
+  min-width:0;
+  display:grid;
+  grid-template-columns:minmax(0, 1fr) 304px;
+  flex:1;
+  min-height:0;
+  border:0;
+}
+.exportMain {
+  min-height:0;
+  overflow:auto;
+  background:var(--raised);
+}
+.exportInspector {
+  padding:16px;
+  border-radius:0;
+  box-shadow:none;
+  border-block:0;
+  border-right:0;
+  background:var(--surface-subtle);
+}
+.exportMain .exportSection {
+  padding:16px 18px;
+  border:0;
+  background:var(--raised);
+}
+.exportMain .exportSection+.exportSection {
+  border-top:1px solid var(--structure-strong);
+}
+.exportInspector .exportLedger {
+  display:block;
+  border-inline:0;
+  background:transparent;
+}
+.exportInspector .exportPersistentStatus {
+  margin:14px 0;
+  padding:12px;
+  border-inline:0;
+  background:transparent;
+}
+.exportInspector .roundRail {
+  display:grid;
+  gap:12px;
+  margin-top:18px;
+  border-top:1px solid var(--structure-strong);
+  border-inline:0;
+  background:transparent;
+}

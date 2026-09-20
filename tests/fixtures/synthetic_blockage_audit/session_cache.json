@@ -1,0 +1,52 @@
+{
+  "wk_df": [
+    {
+      "Student Name": "Student 0001",
+      "Student No": "S0001",
+      "Instructor": "Instructor 0001",
+      "Study Year": 1,
+      "Course Code": "MUS101 (Piano)",
+      "Day of Week": "Monday",
+      "Class Time": "09:00-10:00",
+      "Preferred Venue": "UNKNOWN_ROOM",
+      "Note": null,
+      "创建人": "Instructor 0001"
+    }
+  ],
+  "stu_df": [
+    {
+      "Unnamed: 0": "Instructor",
+      "Unnamed: 1": "Instruments",
+      "Specific Dates": "",
+      "Unnamed: 3": "Studio 1 Time",
+      "Unnamed: 4": "Studio 2 Date",
+      "Unnamed: 5": "Studio 2 Time",
+      "Unnamed: 6": "Studio 3 Date",
+      "Unnamed: 7": "Studio 3 Time",
+      "Unnamed: 8": "Preferred Venue",
+      "Unnamed: 9": "创建人"
+    },
+    {
+      "Unnamed: 0": "Instructor 0001",
+      "Unnamed: 1": "Piano",
+      "Specific Dates": "",
+      "Unnamed: 3": "18:00-19:00",
+      "Unnamed: 4": "2026年3月2日 星期一",
+      "Unnamed: 5": "18:00-19:00",
+      "Unnamed: 6": "2026年4月6日 星期一",
+      "Unnamed: 7": "18:00-19:00",
+      "Unnamed: 8": "R101",
+      "Unnamed: 9": "Instructor 0001"
+    }
+  ],
+  "generated_assignments": [
+    {"id": "old_1"},
+    {"id": "old_2"}
+  ],
+  "unassigned_lessons": [],
+  "opt_logs": [],
+  "override_history": [],
+  "redo_stack": [],
+  "round_committed": false,
+  "scheduler_rules_trace": {}
+}

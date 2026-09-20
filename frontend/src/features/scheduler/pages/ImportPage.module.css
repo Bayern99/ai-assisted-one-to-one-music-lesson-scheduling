@@ -1,0 +1,230 @@
+/* Import page scheduler styles. */
+.preview h3+p {
+  margin:4px 0 0;
+}
+.conflictAction p {
+  margin:4px 0 0;
+}
+.preview h3 {
+  margin:0;
+  color:var(--ink);
+  font-size:calc(15px + var(--text-size-offset));
+}
+.conflictAction {
+  margin:14px 0 0;
+  padding:11px 12px;
+  border-left:3px solid var(--accent);
+  background:var(--accent-soft);
+}
+.warningPanel {
+  margin:14px 0 0;
+  padding:11px 12px;
+  border-left:3px solid var(--muted);
+  background:var(--surface);
+}
+.warningPanel ul {
+  margin:8px 0 0;
+  padding-left:18px;
+}
+.sheetTab[aria-pressed="true"] {
+  box-shadow:inset 0 -2px 0 var(--ink);
+  background:var(--surface);
+}
+@media (max-width: 1240px) {
+  .importGrid {
+    gap:20px;
+  }
+  .importColumn+.importColumn {
+    padding-left:20px;
+  }
+}
+.importModeBar {
+  min-height:42px;
+  display:flex;
+  align-items:end;
+  gap:2px;
+  padding:0 14px;
+  border-bottom:1px solid var(--structure-strong);
+  background:var(--surface-subtle);
+}
+.importModeBar button {
+  min-height:34px;
+  padding:0 12px;
+  border:0;
+  border-bottom:2px solid transparent;
+  color:var(--muted-readable);
+  background:transparent;
+  font:500 calc(11.5px + var(--text-size-offset))/1 var(--font-ui);
+}
+.importModeBar button:hover {
+  color:var(--ink);
+  background:var(--surface);
+}
+.importModeBar button[aria-pressed='true'] {
+  color:var(--ink);
+  border-bottom-color:var(--accent);
+}
+.importModeBar button:focus-visible {
+  outline:0;
+  box-shadow:var(--focus-ring);
+}
+.sourcePreview {
+  margin-top:0;
+  padding:14px;
+  border-top:1px solid var(--structure-strong);
+}
+.sourcePreview dl {
+  display:grid;
+  grid-template-columns:minmax(160px, 1fr) minmax(160px, 1fr) 90px;
+  margin:0 0 12px;
+  border:1px solid var(--structure);
+  background:var(--surface-subtle);
+}
+.sourcePreview dl div {
+  min-width:0;
+  padding:9px 10px;
+  border-right:1px solid var(--structure);
+}
+.sourcePreview dl div:last-child {
+  border-right:0;
+}
+.sourcePreview dt {
+  color:var(--muted-readable);
+  font-size:calc(10.5px + var(--text-size-offset));
+}
+.sourcePreview dd {
+  margin:3px 0 0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:calc(12px + var(--text-size-offset));
+}
+.sourceColumns {
+  max-height:126px;
+}
+.sourceColumns table {
+  min-width:max-content;
+}
+.importColumn>.importSectionHeading {
+  min-height:52px;
+  align-items:center;
+  margin:0;
+  padding:10px 14px;
+  border-bottom:1px solid var(--structure);
+}
+.importColumn>.actionRow {
+  margin:0;
+}
+.importColumn>.importInlineError {
+  margin:12px 14px;
+}
+.importColumn>.conflictAction {
+  margin:12px 14px;
+}
+.importColumn>.warningPanel {
+  margin:12px 14px;
+}
+.importColumn>.importPersistentStatus {
+  margin:12px 14px;
+}
+.importColumn+.importColumn {
+  padding-left:14px;
+  border-left:1px solid var(--structure-strong);
+}
+.actionRow {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:9px;
+}
+.previewHeading {
+  padding:10px 14px;
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:10px;
+}
+.previewHeading h3 {
+  margin:0;
+  font-size:calc(12px + var(--text-size-offset));
+}
+.sheetTabs {
+  align-content:start;
+  display:grid;
+  grid-template-columns:minmax(0, 1fr);
+  gap:0;
+  margin:0;
+  border:0;
+  border-right:1px solid var(--structure);
+  background:var(--surface);
+}
+.sheetTab {
+  display:grid;
+  gap:4px;
+  color:var(--ink);
+  border:0;
+  text-align:left;
+  cursor:pointer;
+  min-height:48px;
+  padding:8px 10px;
+  border-bottom:1px solid var(--structure);
+  background:var(--surface);
+}
+.sheetTab[aria-pressed='true'] {
+  box-shadow:inset 3px 0 var(--accent);
+  background:var(--accent-soft);
+}
+.sheetTab strong {
+  font-size:calc(10.5px + var(--text-size-offset));
+}
+.sheetTab span {
+  color:var(--muted-readable);
+  font-size:calc(10.5px + var(--text-size-offset));
+}
+.sheetPreview {
+  min-width:0;
+  padding:11px 12px 0;
+  overflow:hidden;
+  background:var(--raised);
+}
+.importGrid {
+  display:grid;
+  grid-template-columns:minmax(0, 1fr);
+  grid-template-rows:auto minmax(0, 1fr);
+  overflow:auto;
+  gap:0;
+  border-radius:0;
+  box-shadow:none;
+  flex:1;
+  min-height:0;
+  border:0;
+}
+.importColumn {
+  padding-top:4px;
+  min-width:0;
+  overflow:hidden;
+  border-radius:0;
+  box-shadow:none;
+  padding:0;
+  border:0;
+  background:var(--raised);
+}
+.preview {
+  margin-top:12px;
+  padding-top:11px;
+  margin:0;
+  padding:0;
+  border-top:1px solid var(--structure-strong);
+}
+.workbookWorkbench {
+  min-width:0;
+  display:grid;
+  grid-template-columns:184px minmax(0, 1fr);
+  border:1px solid var(--structure);
+  overflow:hidden;
+  margin:0 14px 14px;
+  border-radius:var(--radius-md);
+  box-shadow:none;
+}

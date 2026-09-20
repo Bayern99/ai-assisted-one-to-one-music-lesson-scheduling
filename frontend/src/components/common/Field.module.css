@@ -1,0 +1,23 @@
+.field {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  color: var(--ink);
+}
+
+.label {
+  color: var(--muted-readable);
+  font-size: calc(11.5px + var(--text-size-offset));
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.helper,
+.error {
+  font-size: calc(11px + var(--text-size-offset));
+  line-height: 1.3;
+}
+
+.helper { color: var(--muted-readable); }
+.error { color: var(--error); }

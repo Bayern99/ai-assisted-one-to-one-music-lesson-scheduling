@@ -1,0 +1,76 @@
+# === Python ===
+__pycache__/
+.pytest_cache/
+*.pyc
+*.pyo
+*.egg-info/
+.coverage
+
+# === macOS ===
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# === IDE ===
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# === 项目特定 ===
+# 数据文件（包含学生隐私信息，不应进入版本控制）
+data/*.json
+data/backups/
+
+# 学生/考试资料文件夹（隐私数据）
+Files/
+
+# 上传的文件
+uploads/
+
+# 导出的文件
+exports/
+
+# 调试/临时脚本（非核心代码）
+debug_*.py
+repro_*.py
+inspect_*.py
+verify_*.py
+restore_config.py
+temp_check.py
+schedule_app\ copy.py
+
+# 影子数据目录（运行时自动生成，含 PII）
+.runtime_shadow_data/
+
+# 泄漏的临时文件
+data/tmp*
+
+# 调试日志
+*.log
+verification_debug.log
+
+# 上传的临时数据文件
+Studio_Schedule.xlsx
+/Scheduler Workbook.xlsx
+
+# 备份文件
+*.bak
+
+# 编译产物
+*.o
+wrapper
+*.icns
+.git.backup
+/Music Lesson Scheduler.app/
+/Music Lesson Scheduler *.app/
+/dist/
+/artifacts/
+/data/.music-lesson-scheduler.lock
+/native-shell/.build/
+
+frontend/node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+build/openapi.json

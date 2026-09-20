@@ -1,0 +1,18 @@
+[
+  {
+    "id": "primary_evt",
+    "resourceId": "R101",
+    "startTime": "09:00:00",
+    "endTime": "10:00:00",
+    "daysOfWeek": [1],
+    "type": "weekly_lesson",
+    "extendedProps": {
+      "Instructor": "Instructor 0001",
+      "Student Name": "Primary Student 0001",
+      "Student No": "S1",
+      "Study Year": "1",
+      "Course Code": "MUS101 (Piano)",
+      "day_en": "Monday"
+    }
+  }
+]

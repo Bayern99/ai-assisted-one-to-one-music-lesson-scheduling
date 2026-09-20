@@ -1,0 +1,173 @@
+@font-face {
+  font-family: 'Relative';
+  src: url('../../../font/Relative-Book.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Relative';
+  src: url('../../../font/Relative-Medium.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Relative';
+  src: url('../../../font/Relative-Bold.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light;
+  --canvas: #e8eaed;
+  --surface: #f4f5f6;
+  --surface-subtle: #f8f8f8;
+  --raised: #ffffff;
+  --ink: #202227;
+  --ink-soft: #4e525a;
+  --muted: #737780;
+  --faint: #9ca0a8;
+  --muted-readable: #656a73;
+  --rail: #27292e;
+  --rail-muted: #9498a1;
+  --structure: rgba(32,34,39,.09);
+  --structure-strong: rgba(32,34,39,.16);
+  --structure-emphasis: rgba(32,34,39,.28);
+  --accent: #c35f49;
+  --accent-readable: #a34734;
+  --accent-soft: #f4e3df;
+  --on-accent: #ffffff;
+  --warning-soft: #f6ebe7;
+  --warning-readable: #7f3e31;
+  --error: #a94734;
+  --error-soft: #f6ebe7;
+  --error-readable: #7f3e31;
+  --grid: #fafbfb;
+  --grid-subtle: #f6f7f8;
+  --grid-muted: #eff0f2;
+  --grid-hover: #e9ebed;
+  --grid-locked: #e8eaec;
+  --dark-text: #555961;
+  --dark-muted: #5d6169;
+  --dark-strong: #4d5159;
+  --dark-soft: #696d75;
+  --rail-text: #f5f5f3;
+  --rail-text-strong: #d7d9dd;
+  --rail-text-subtle: #a9adb5;
+  --ink-muted: #5d514e;
+  --ink-quiet: #5e626a;
+  --ink-quiet-strong: #5f636b;
+  --ink-faint: #6d7179;
+  --grid-line: #8b8f97;
+  --surface-plain: #fbfbfb;
+  --overlay: rgba(32,34,39,.38);
+  --overlay-dark: rgba(20,22,26,.30);
+  --rail-border: rgba(255,255,255,.17);
+  --rail-border-strong: rgba(255,255,255,.12);
+  --rail-surface: rgba(255,255,255,.045);
+  --rail-surface-strong: rgba(255,255,255,.09);
+  --rail-line: rgba(255,255,255,.10);
+  --shadow-panel: 0 12px 30px rgba(55,59,68,.055);
+  --shadow-panel-subtle: 0 12px 30px rgba(55,59,68,.035);
+  --shadow-soft: 0 6px 18px rgba(55,59,68,.08);
+  --shadow-dialog: 0 18px 60px rgba(32,34,39,.20);
+  --shadow-dialog-wide: 0 20px 60px rgba(32,34,39,.20);
+  --shadow-grid: 0 8px 20px rgba(32,34,39,.18);
+  --shadow-status: 0 8px 24px rgba(32,34,39,.12);
+  --grid-line-faint: rgba(32,34,39,.04);
+  --grid-border: rgba(32,34,39,.13);
+
+  --font-ui: 'Relative', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-display: 'Relative', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SFMono-Regular', 'SF Mono', Menlo, Monaco, monospace;
+  --text-size-offset: 0px;
+  --workspace-heading-size: calc(18px + var(--text-size-offset));
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  --rail-width: 176px;
+  --native-titlebar-inset: 0px;
+  --statusbar-height: 35px;
+  --control-height-compact: 28px;
+  --control-height: 32px;
+  --radius-micro: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-emphasis: 10px;
+  /* Nested-enclosure radii: a core inside a shell keeps concentric curves. */
+  --radius-shell: 14px;
+  --radius-core: calc(var(--radius-shell) - 4px);
+  --radius-pill: 999px;
+
+  /* Machined-surface bezel: hairline shell, inner core, inset highlight. */
+  --bezel-shell: color-mix(in srgb, var(--ink) 4%, transparent);
+  --bezel-shell-border: color-mix(in srgb, var(--ink) 10%, transparent);
+  --bezel-inset-highlight: inset 0 1px 0 rgba(255,255,255,.72);
+  --bezel-inset-shade: inset 0 -1px 0 color-mix(in srgb, var(--ink) 4%, transparent);
+  --bezel-core-border: color-mix(in srgb, var(--ink) 8%, transparent);
+
+  /* Soft, diffused, ink-tinted elevation. Never harsh black. */
+  --elevation-rest: 0 1px 1px color-mix(in srgb, var(--ink) 3%, transparent), 0 8px 20px -12px color-mix(in srgb, var(--ink) 16%, transparent);
+  --elevation-raised: 0 1px 2px color-mix(in srgb, var(--ink) 4%, transparent), 0 16px 34px -18px color-mix(in srgb, var(--ink) 22%, transparent);
+  --elevation-floating: 0 2px 4px color-mix(in srgb, var(--ink) 5%, transparent), 0 28px 60px -26px color-mix(in srgb, var(--ink) 30%, transparent);
+
+  --motion: cubic-bezier(.32,.72,0,1);
+  --motion-emphasis: cubic-bezier(.22,.9,.24,1.02);
+  --motion-hover: 100ms;
+  --motion-press: 80ms;
+  --motion-selection: 140ms;
+  --motion-status: 180ms;
+  --motion-pane: 220ms;
+  --motion-enter: 460ms;
+  --press-scale: .985;
+  --lift-scale: 1.004;
+  --focus-width: 2px;
+  --focus-ring: 0 0 0 var(--focus-width) color-mix(in srgb, var(--accent) 72%, transparent);
+
+  --z-status: 20;
+  --z-popover: 40;
+  --z-dialog: 60;
+}
+
+html[data-pi-desktop='macos'] {
+  --native-titlebar-inset: 28px;
+}
+
+html[data-text-size='small'] { --text-size-offset: -1px; }
+html[data-text-size='large'] { --text-size-offset: 1.5px; }
+
+@media (prefers-contrast: more) {
+  :root {
+    --muted-readable: #4f535b;
+    --structure: rgba(32,34,39,.18);
+    --structure-strong: rgba(32,34,39,.32);
+    --structure-emphasis: rgba(32,34,39,.48);
+    --bezel-shell-border: color-mix(in srgb, var(--ink) 22%, transparent);
+    --bezel-core-border: color-mix(in srgb, var(--ink) 18%, transparent);
+  }
+}
+
+/* Motion is decoration here, never information: kill it on request. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-hover: 1ms;
+    --motion-press: 1ms;
+    --motion-selection: 1ms;
+    --motion-status: 1ms;
+    --motion-pane: 1ms;
+    --motion-enter: 1ms;
+    --press-scale: 1;
+    --lift-scale: 1;
+  }
+}

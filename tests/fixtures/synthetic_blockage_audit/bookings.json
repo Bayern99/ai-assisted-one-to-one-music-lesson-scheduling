@@ -1,0 +1,42 @@
+[
+  {
+    "id": "wk_synth_weekly",
+    "type": "committed_weekly",
+    "student_name": "Student 0001",
+    "instructor_name": "Instructor 0001",
+    "course_code": "MUS101",
+    "assigned_room": "R101",
+    "resourceId": "R101",
+    "locked": true,
+    "title": "Student 0001 / Instructor 0001",
+    "daysOfWeek": [1],
+    "startTime": "09:00:00",
+    "endTime": "10:00:00",
+    "extendedProps": {
+      "Student Name": "Student 0001",
+      "Student No": "S0001",
+      "Instructor": "Instructor 0001",
+      "Study Year": "1",
+      "Course Code": "MUS101 (Piano)",
+      "Day of Week": "Monday",
+      "Class Time": "09:00-10:00",
+      "Preferred Venue": "R101"
+    }
+  },
+  {
+    "id": "stu_synth_studio",
+    "type": "committed_studio",
+    "student_name": "N/A",
+    "instructor_name": "Instructor 0001",
+    "assigned_room": "R101",
+    "resourceId": "R101",
+    "locked": true,
+    "title": "Studio / Instructor 0001",
+    "start": "2026-03-02T18:00:00",
+    "end": "2026-03-02T19:00:00",
+    "extendedProps": {
+      "Instructor": "Instructor 0001",
+      "date": "2026-03-02"
+    }
+  }
+]

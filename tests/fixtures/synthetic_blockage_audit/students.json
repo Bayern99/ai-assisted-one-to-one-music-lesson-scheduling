@@ -1,0 +1,11 @@
+[
+  {
+    "name_en": "Student 0001",
+    "name_ch": "学生0001",
+    "student_id": "S0001",
+    "year": 1,
+    "programme": "MUS",
+    "instructor": "Instructor 0001",
+    "instrument": "Piano"
+  }
+]

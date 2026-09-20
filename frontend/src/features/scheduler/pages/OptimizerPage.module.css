@@ -1,0 +1,211 @@
+/* Optimizer page scheduler styles. */
+.readinessLedger div {
+  min-width:0;
+  padding:10px 12px;
+  border-left:1px solid var(--structure);
+}
+.readinessLedger div:first-child {
+  border-left:0;
+  padding-left:0;
+}
+.readinessLedger dt {
+  color:color-mix(in srgb, var(--muted) 82%, var(--ink));
+  font-size:calc(10.5px + var(--text-size-offset));
+  text-transform:uppercase;
+  letter-spacing:.03em;
+}
+.readinessLedger dd {
+  margin:3px 0 0;
+  overflow-wrap:anywhere;
+  font-weight:700;
+}
+.failureActions {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  justify-content:space-between;
+}
+.continueRow {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  justify-content:space-between;
+}
+.continueRow :global(.button) {
+  min-height:var(--control-height);
+  display:inline-flex;
+  align-items:center;
+  padding:0 16px;
+  text-decoration:none;
+}
+.preflightIssues {
+  margin-top:12px;
+  padding:10px 12px;
+  border-left:3px solid var(--accent);
+  background:color-mix(in srgb, var(--accent) 7%, var(--surface));
+}
+.preflightIssues ul {
+  margin:6px 0;
+  padding-left:18px;
+}
+.preflightIssues a {
+  color:var(--ink);
+  font-weight:600;
+}
+.runInspector .runInspectorHeading {
+  margin-bottom:12px;
+}
+.runInspector .runLedger {
+  display:block;
+  border:0;
+  border-radius:0;
+  background:transparent;
+}
+.runInspector .runLedger div {
+  padding:10px 0;
+  border:0;
+  border-top:1px solid var(--structure);
+}
+.runInspector .runLedger dt {
+  font-family:var(--font-ui);
+  font-size:calc(11px + var(--text-size-offset));
+  letter-spacing:0;
+  text-transform:none;
+}
+.runInspector .runLedger dd {
+  margin-top:4px;
+  font-size:calc(11px + var(--text-size-offset));
+}
+.continueRow span {
+  color:color-mix(in srgb, var(--muted) 82%, var(--ink));
+  font-size:calc(10.5px + var(--text-size-offset));
+}
+.readinessLedger {
+  display:grid;
+  margin:12px 0 16px;
+  margin-bottom:0;
+  grid-template-columns:100px 135px 100px minmax(0, 1fr);
+}
+.runLedger {
+  display:grid;
+  grid-template-columns:1.25fr 1fr .75fr 1fr;
+  margin:0;
+  overflow:hidden;
+  border:1px solid var(--structure-strong);
+  border-radius:8px;
+  background:var(--surface);
+}
+.runLedger div {
+  min-width:0;
+  padding:8px 10px;
+  border-right:1px solid var(--structure);
+}
+.runLedger div:last-child {
+  border-right:0;
+}
+.runLedger dt {
+  color:var(--faint);
+  font-family:var(--font-mono);
+  font-size:calc(10.5px + var(--text-size-offset));
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.runLedger dd {
+  margin:3px 0 0;
+  overflow-wrap:anywhere;
+  font-size:calc(10.5px + var(--text-size-offset));
+}
+.rootCauseList {
+  display:grid;
+  margin:0;
+  padding:0;
+  list-style:none;
+}
+.rootCauseList li {
+  min-height:30px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  color:var(--muted-readable);
+  border-top:1px solid var(--structure);
+  font-size:calc(10.5px + var(--text-size-offset));
+}
+.rootCauseList strong {
+  color:var(--ink);
+  font-family:var(--font-mono);
+}
+.readiness {
+  padding-top:4px;
+  border-bottom:1px solid var(--structure);
+  min-width:0;
+  padding:14px;
+  overflow:hidden;
+  border:1px solid var(--structure-strong);
+  background:var(--raised);
+  padding-bottom:14px;
+  border-radius:0;
+  box-shadow:none;
+}
+.rootCausePanel {
+  min-width:0;
+  padding:12px 14px;
+  border:1px solid var(--structure-strong);
+  background:var(--raised);
+  border-radius:0;
+  box-shadow:none;
+}
+.optimizerWorkbench {
+  min-width:0;
+  display:grid;
+  grid-template-columns:minmax(0, 1fr) 288px;
+  flex:1;
+  min-height:0;
+  border:0;
+}
+.optimizerMain {
+  min-height:0;
+  overflow:auto;
+  background:var(--raised);
+}
+.optimizerMain .readiness {
+  border-radius:0;
+  border-bottom:1px solid var(--structure-strong);
+  margin:0;
+  padding:14px 18px;
+  border-inline:0;
+}
+.optimizerMain .rootCausePanel {
+  border-radius:0;
+  border:0;
+  border-top:1px solid var(--structure-strong);
+  margin:0;
+  padding:14px 18px;
+  border-inline:0;
+}
+.optimizerMain .optimizerInlineError {
+  border-radius:0;
+  margin:0;
+  padding:14px 18px;
+  border-inline:0;
+}
+.optimizerMain .failureActions {
+  border-radius:0;
+  margin:0;
+  padding:14px 18px;
+  border-inline:0;
+}
+.optimizerMain .continueRow {
+  border-radius:0;
+  margin:0;
+  padding:14px 18px;
+  border-inline:0;
+}
+.runInspector {
+  padding:16px;
+  border-radius:0;
+  box-shadow:none;
+  border-block:0;
+  border-right:0;
+  background:var(--surface-subtle);
+}

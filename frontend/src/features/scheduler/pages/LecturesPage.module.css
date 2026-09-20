@@ -1,0 +1,194 @@
+/* Lectures page scheduler styles. */
+.daysFieldset {
+  min-width:202px;
+  display:flex;
+  gap:3px;
+  margin:0;
+  padding:0;
+  border:0;
+}
+.daysFieldset legend {
+  position:absolute;
+  width:1px;
+  height:1px;
+  overflow:hidden;
+  clip:rect(0 0 0 0);
+}
+.daysFieldset label {
+  position:relative;
+  display:block;
+}
+.daysFieldset input {
+  position:absolute;
+  opacity:0;
+}
+.daysFieldset span {
+  width:26px;
+  height:32px;
+  display:grid;
+  place-items:center;
+  border:1px solid var(--structure);
+  border-radius:var(--radius-sm);
+  background:var(--raised);
+  cursor:pointer;
+}
+.daysFieldset input:checked+span {
+  color:var(--raised);
+  border-color:var(--ink);
+  background:var(--ink);
+}
+.daysFieldset input:focus-visible+span {
+  outline:var(--focus-width) solid var(--accent);
+  outline-offset:2px;
+}
+.timePair {
+  min-width:188px;
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:6px;
+}
+.timePair input {
+  width:91px;
+}
+.lecturePreviewSummary div {
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+}
+.lecturePreviewSummary span {
+  color:var(--muted-readable);
+  font-size:calc(11px + var(--text-size-offset));
+}
+.lecturePreviewSummary li {
+  color:var(--muted-readable);
+  font-size:calc(11px + var(--text-size-offset));
+}
+.lecturePreviewSummary ul {
+  margin:0;
+  padding-left:18px;
+}
+.lectureWorkbench {
+  min-width:0;
+  min-height:0;
+  flex:1;
+  display:grid;
+  grid-template-columns:minmax(0, 1fr) 328px;
+}
+.lectureMain {
+  min-width:0;
+  min-height:0;
+  overflow:auto;
+  background:var(--raised);
+}
+.lectureMain>*:not(.lectureActionRail) {
+  margin-inline:16px;
+}
+.lectureMain>.lectureActionRail {
+  margin:0;
+}
+.lectureMain>:global([data-selected]) {
+  margin-top:14px;
+}
+.lectureListFrame {
+  max-height:calc(100% - 162px);
+  margin-top:14px;
+  overflow:auto;
+}
+.lectureListFrame thead th {
+  position:sticky;
+  z-index:1;
+  top:0;
+}
+.lectureListFrame tbody tr {
+  cursor:pointer;
+}
+.lectureListFrame tbody tr[aria-selected="true"] {
+  box-shadow:inset 3px 0 0 var(--accent);
+  background:var(--accent-soft);
+}
+.conflictRow {
+  color:var(--error);
+  background:color-mix(in srgb, var(--error) 6%, var(--raised));
+}
+.rowSelectButton {
+  width:100%;
+  display:grid;
+  gap:2px;
+  padding:0;
+  color:inherit;
+  border:0;
+  background:transparent;
+  text-align:left;
+  cursor:pointer;
+}
+.rowSelectButton strong {
+  font-weight:500;
+}
+.lectureInspector {
+  min-width:0;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  padding:16px;
+  overflow:auto;
+  border-left:1px solid var(--structure-strong);
+  background:var(--surface-subtle);
+}
+.lectureInspector .lectureInspectorHeading h2 {
+  font-family:var(--font-display);
+  font-size:var(--workspace-heading-size);
+  font-weight:500;
+}
+.lectureInspectorFields {
+  display:grid;
+  gap:14px;
+}
+.lectureInspectorFields .daysFieldset {
+  min-width:0;
+  flex-wrap:wrap;
+}
+.lectureInspectorFields .timePair {
+  min-width:0;
+}
+.lectureInspectorFields .timePair input {
+  width:100%;
+}
+.lectureCommands {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-top:auto;
+  padding-top:14px;
+  border-top:1px solid var(--structure-strong);
+}
+.inspectorEmpty {
+  margin:auto 0;
+}
+.inspectorEmpty h2 {
+  margin:0;
+  font-family:var(--font-display);
+  font-size:var(--workspace-heading-size);
+}
+.inspectorEmpty p {
+  margin:0;
+  margin-top:5px;
+  color:var(--muted-readable);
+}
+@media (max-width: 1180px) {
+  .lectureWorkbench {
+    grid-template-columns:minmax(0, 1fr) 300px;
+  }
+}
+.fieldHint {
+  color:color-mix(in srgb, var(--muted) 82%, var(--ink));
+  font-size:calc(10.5px + var(--text-size-offset));
+}
+.lecturePreviewSummary {
+  display:grid;
+  gap:8px;
+  border-left:3px solid var(--ink);
+  background:var(--surface);
+  margin:9px 0;
+  padding:8px 10px;
+}

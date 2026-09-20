@@ -1,0 +1,5 @@
+.timeInput[aria-invalid='true'] {
+  border-color: var(--error);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--error) 22%, transparent);
+}
+.error { color: var(--error-readable); font-size: calc(10px + var(--text-size-offset)); line-height: 1.3; }

@@ -1,0 +1,292 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 1180px;
+  height: 100%;
+  min-height: 720px;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  color: var(--ink);
+  background: var(--surface);
+  font-family: var(--font-ui);
+  font-size: calc(13px + var(--text-size-offset));
+  font-synthesis: none;
+  font-weight: 400;
+  line-height: 1.42;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+.routeLoading {
+  min-height: 160px;
+  display: grid;
+  place-items: center;
+}
+
+.routeLoading > span {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--structure-strong);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: route-loading-spin 700ms linear infinite;
+}
+
+@keyframes route-loading-spin { to { transform: rotate(1turn); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .routeLoading > span { animation: none; border-top-color: var(--structure-strong); background: var(--accent-soft); }
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+::selection {
+  color: var(--ink);
+  background: var(--accent-soft);
+}
+
+:focus-visible {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: 2px;
+}
+
+.numeric,
+.time,
+.room,
+.meta {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.button {
+  min-height: var(--control-height);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: calc(12.5px + var(--text-size-offset));
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  transition:
+    color var(--motion-hover) ease-out,
+    background-color var(--motion-hover) ease-out,
+    border-color var(--motion-hover) ease-out,
+    box-shadow var(--motion-hover) ease-out,
+    transform var(--motion-press) ease-out;
+}
+
+.button svg { width: 14px; height: 14px; flex: 0 0 auto; }
+
+.button--primary {
+  color: var(--raised);
+  background: var(--ink);
+}
+
+.button--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 88%, var(--raised));
+}
+
+.button--secondary {
+  color: var(--ink);
+  border-color: var(--structure-strong);
+  background: var(--surface-subtle);
+}
+
+.button--secondary:hover:not(:disabled),
+.button--quiet:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+
+.button--quiet {
+  color: var(--ink);
+  background: transparent;
+}
+
+.button--destructive {
+  color: var(--error);
+  border-color: color-mix(in srgb, var(--error) 34%, transparent);
+  background: var(--raised);
+}
+
+.button--destructive:hover:not(:disabled) {
+  color: var(--raised);
+  background: var(--error);
+}
+
+.button--selected {
+  color: var(--accent-readable);
+  border-color: color-mix(in srgb, var(--accent) 48%, transparent);
+  background: var(--accent-soft);
+}
+
+.button--icon {
+  width: var(--control-height);
+  padding: 0;
+}
+
+.button:active:not(:disabled) {
+  transform: translateY(1px) scale(.985);
+}
+
+.button:focus-visible { outline: 0; box-shadow: var(--focus-ring); }
+
+.button:disabled {
+  color: var(--faint);
+  border-color: var(--structure);
+  background: var(--surface);
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.button[data-loading='true'] { cursor: progress; }
+
+.statusBanner {
+  position: relative;
+  min-height: 0;
+  border-bottom: 1px solid var(--structure);
+  background: var(--surface);
+}
+
+.statusBanner__message {
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 8px 24px;
+  color: var(--ink);
+  font-size: calc(12.5px + var(--text-size-offset));
+}
+
+.statusBanner__message[data-tone='warning'],
+.statusBanner__message[data-tone='warning'] {
+  border-left: 3px solid var(--warning-readable);
+  background: var(--warning-soft);
+}
+
+.statusBanner__message[data-tone='error'] {
+  border-left: 3px solid var(--error);
+  background: var(--error-soft);
+}
+
+.statusBanner__alert {
+  position: absolute;
+  inset: 0;
+}
+
+.routeFallback {
+  max-width: 36rem;
+  padding-block: 24px;
+}
+
+input,
+select,
+textarea {
+  min-height: var(--control-height);
+  border: 1px solid var(--structure-strong);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  background: var(--raised);
+  font-family: var(--font-ui);
+  font-size: calc(12.5px + var(--text-size-offset));
+}
+
+input,
+textarea { padding: 0 9px; }
+
+select { padding: 0 26px 0 9px; }
+
+input:hover:not(:disabled),
+select:hover:not(:disabled),
+textarea:hover:not(:disabled) { border-color: var(--structure-emphasis); }
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 0;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  color: var(--faint);
+  background: var(--surface);
+}
+
+button,
+[role='button'],
+a,
+input,
+select,
+textarea { -webkit-tap-highlight-color: transparent; }
+
+.routeFallback h2,
+.routeFallback p {
+  margin: 0;
+}
+
+.routeFallback h2 {
+  font-size: calc(20px + var(--text-size-offset));
+  line-height: 1.2;
+}
+
+.routeFallback p {
+  margin-top: 8px;
+  color: color-mix(in srgb, var(--muted) 75%, var(--ink));
+}
+
+.routeFallback__link {
+  min-height: var(--control-height);
+  display: inline-flex;
+  align-items: center;
+  margin-top: 16px;
+  font-weight: 500;
+  text-underline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto !important; }
+  *, *::before, *::after { animation: none !important; }
+  button,
+  [role='button'],
+  a,
+  input,
+  select,
+  textarea {
+    transition-duration: var(--motion-hover) !important;
+    transition-property: color, background-color, border-color, box-shadow, opacity !important;
+    transform: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root { --floating-surface: var(--raised); }
+}

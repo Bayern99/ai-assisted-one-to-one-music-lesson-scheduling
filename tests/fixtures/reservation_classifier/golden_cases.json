@@ -1,0 +1,323 @@
+{
+  "cases": [
+    {
+      "name": "weekly_magnet",
+      "instructor": "Voice A",
+      "assignments": [
+        {
+          "id": "wk_voice_a_mon",
+          "type": "weekly_lesson",
+          "resourceId": "CC322",
+          "daysOfWeek": [1],
+          "startTime": "10:00:00",
+          "endTime": "11:00:00",
+          "source_request_id": "weekly:voice-a:0",
+          "extendedProps": {"Instructor": "Voice A"}
+        }
+      ],
+      "unassigned_lessons": [
+        {
+          "id": "stu_voice_a_1",
+          "type": "studio_class",
+          "date": "2026-03-02",
+          "day": 1,
+          "start": "10:00",
+          "end": "11:00",
+          "source_request_id": "studio:voice-a:1:0:10:00",
+          "raw_row": {"Instructor": "Voice A", "Event Type": "Studio Class"}
+        }
+      ],
+      "expect": {
+        "stu_voice_a_1": {
+          "label": "reservation_internal",
+          "magnet_room": "CC322"
+        }
+      }
+    },
+    {
+      "name": "weekly_with_placed_studio",
+      "instructor": "Piano C",
+      "assignments": [
+        {
+          "id": "wk_piano_c_wed",
+          "type": "weekly_lesson",
+          "resourceId": "R101",
+          "daysOfWeek": [3],
+          "startTime": "14:00:00",
+          "endTime": "15:00:00",
+          "source_request_id": "weekly:piano-c:0",
+          "extendedProps": {"Instructor": "Piano C"}
+        },
+        {
+          "id": "stu_piano_c_placed",
+          "type": "studio_class",
+          "resourceId": "R102",
+          "start": "2026-03-04T14:00:00",
+          "end": "2026-03-04T15:00:00",
+          "source_request_id": "studio:piano-c:1:0:14:00",
+          "extendedProps": {"Instructor": "Piano C"}
+        }
+      ],
+      "unassigned_lessons": [
+        {
+          "id": "stu_piano_c_unplaced",
+          "type": "studio_class",
+          "date": "2026-03-11",
+          "day": 3,
+          "start": "14:00",
+          "end": "15:00",
+          "source_request_id": "studio:piano-c:1:1:14:00",
+          "raw_row": {"Instructor": "Piano C", "Event Type": "Studio Class"}
+        }
+      ],
+      "expect": {
+        "stu_piano_c_unplaced": {
+          "label": "reservation_internal",
+          "magnet_room": "R101"
+        }
+      }
+    },
+    {
+      "name": "first_studio_magnet",
+      "instructor": "Flute",
+      "assignments": [
+        {
+          "id": "stu_flute_placed",
+          "type": "studio_class",
+          "resourceId": "R106",
+          "start": "2026-03-05T16:00:00",
+          "end": "2026-03-05T17:00:00",
+          "source_request_id": "studio:flute:1:0:16:00",
+          "extendedProps": {"Instructor": "Flute"}
+        }
+      ],
+      "unassigned_lessons": [
+        {
+          "id": "stu_flute_unplaced",
+          "type": "studio_class",
+          "date": "2026-03-12",
+          "day": 4,
+          "start": "16:00",
+          "end": "17:00",
+          "source_request_id": "studio:flute:1:1:16:00",
+          "raw_row": {"Instructor": "Flute", "Event Type": "Studio Class"}
+        }
+      ],
+      "expect": {
+        "stu_flute_unplaced": {
+          "label": "reservation_internal",
+          "magnet_room": "R106"
+        }
+      }
+    },
+    {
+      "name": "weekly_hole_studio_magnet",
+      "instructor": "Piano A",
+      "assignments": [
+        {
+          "id": "stu_piano_a_placed",
+          "type": "studio_class",
+          "resourceId": "R101",
+          "start": "2026-03-04T14:00:00",
+          "end": "2026-03-04T15:00:00",
+          "source_request_id": "studio:piano-a:1:0:14:00",
+          "extendedProps": {"Instructor": "Piano A"}
+        }
+      ],
+      "unassigned_lessons": [
+        {
+          "id": "stu_piano_a_unplaced",
+          "type": "studio_class",
+          "date": "2026-03-11",
+          "day": 3,
+          "start": "14:00",
+          "end": "15:00",
+          "source_request_id": "studio:piano-a:1:1:14:00",
+          "raw_row": {"Instructor": "Piano A", "Event Type": "Studio Class"}
+        }
+      ],
+      "expect": {
+        "stu_piano_a_unplaced": {
+          "label": "reservation_internal",
+          "magnet_room": "R101"
+        }
+      }
+    },
+    {
+      "name": "instrumental_series",
+      "instructor": "Erhu",
+      "assignments": [
+        {
+          "id": "wk_erhu_tue",
+          "type": "weekly_lesson",
+          "resourceId": "R107",
+          "daysOfWeek": [2],
+          "startTime": "11:00:00",
+          "endTime": "12:00:00",
+          "source_request_id": "weekly:erhu:0",
+          "extendedProps": {"Instructor": "Erhu"}
+        }
+      ],
+      "unassigned_lessons": [
+        {
+          "id": "stu_erhu_unplaced",
+          "type": "studio_class",
+          "date": "2026-03-03",
+          "day": 2,
+          "start": "11:00",
+          "end": "12:00",
+          "source_request_id": "studio:erhu:1:0:11:00",
+          "raw_row": {"Instructor": "Erhu", "Event Type": "Studio Class"}
+        }
+      ],
+      "expect": {
+        "stu_erhu_unplaced": {
+          "label": "reservation_internal",
+          "magnet_room": "R107"
+        }
+      }
+    },
+    {
+      "name": "piano_friday_series",
+      "instructor": "Piano E",
+      "assignments": [
+        {
+          "id": "wk_piano_e_fri",
+          "type": "weekly_lesson",
+          "resourceId": "CC202",
+          "daysOfWeek": [5],
+          "startTime": "15:00:00",
+          "endTime": "16:00:00",
+          "source_request_id": "weekly:piano-e:0",
+          "extendedProps": {"Instructor": "Piano E"}
+        }
+      ],
+      "unassigned_lessons": [
+        {
+          "id": "stu_piano_e_unplaced",
+          "type": "studio_class",
+          "date": "2026-03-06",
+          "day": 5,
+          "start": "15:00",
+          "end": "16:00",
+          "source_request_id": "studio:piano-e:1:0:15:00",
+          "raw_row": {"Instructor": "Piano E", "Event Type": "Studio Class"}
+        }
+      ],
+      "expect": {
+        "stu_piano_e_unplaced": {
+          "label": "reservation_internal",
+          "magnet_room": "CC202"
+        }
+      }
+    },
+    {
+      "name": "new_clock_is_contention",
+      "instructor": "Piano D",
+      "assignments": [
+        {
+          "id": "wk_piano_d_mon",
+          "type": "weekly_lesson",
+          "resourceId": "R101",
+          "daysOfWeek": [1],
+          "startTime": "18:00:00",
+          "endTime": "19:00:00",
+          "source_request_id": "weekly:piano-d:0",
+          "extendedProps": {"Instructor": "Piano D"}
+        }
+      ],
+      "unassigned_lessons": [
+        {
+          "id": "stu_piano_d_1924",
+          "type": "studio_class",
+          "date": "2025-11-24",
+          "day": 1,
+          "start": "19:00",
+          "end": "20:00",
+          "source_request_id": "studio:piano-d:1:0:19:00",
+          "raw_row": {"Instructor": "Piano D", "Event Type": "Studio Class"}
+        }
+      ],
+      "expect": {
+        "stu_piano_d_1924": {
+          "label": "contention"
+        }
+      }
+    },
+    {
+      "name": "same_day_overlap_contention",
+      "instructor": "Piano D",
+      "assignments": [
+        {
+          "id": "stu_piano_d_placed_same_day",
+          "type": "studio_class",
+          "resourceId": "R101",
+          "start": "2026-11-24T18:00:00",
+          "end": "2026-11-24T19:00:00",
+          "source_request_id": "studio:piano-d:1:0:18:00",
+          "extendedProps": {"Instructor": "Piano D"}
+        }
+      ],
+      "unassigned_lessons": [
+        {
+          "id": "stu_piano_d_overlap",
+          "type": "studio_class",
+          "date": "2026-11-24",
+          "day": 1,
+          "start": "18:30",
+          "end": "19:30",
+          "source_request_id": "studio:piano-d:1:1:18:30",
+          "raw_row": {"Instructor": "Piano D", "Event Type": "Studio Class"}
+        }
+      ],
+      "expect": {
+        "stu_piano_d_overlap": {
+          "label": "contention"
+        }
+      }
+    },
+    {
+      "name": "weekly_same_clock_magnet",
+      "instructor": "Piano D",
+      "assignments": [
+        {
+          "id": "wk_piano_d_mon",
+          "type": "weekly_lesson",
+          "resourceId": "R101",
+          "daysOfWeek": [1],
+          "startTime": "18:00:00",
+          "endTime": "19:00:00",
+          "source_request_id": "weekly:piano-d:0",
+          "extendedProps": {"Instructor": "Piano D"}
+        },
+        {
+          "id": "stu_piano_d_other_room",
+          "type": "studio_class",
+          "resourceId": "R102",
+          "start": "2026-03-02T18:00:00",
+          "end": "2026-03-02T19:00:00",
+          "source_request_id": "studio:piano-d:1:0:18:00",
+          "extendedProps": {"Instructor": "Piano D"}
+        }
+      ],
+      "unassigned_lessons": [
+        {
+          "id": "stu_piano_d_unplaced",
+          "type": "studio_class",
+          "date": "2026-03-09",
+          "day": 1,
+          "start": "18:00",
+          "end": "19:00",
+          "source_request_id": "studio:piano-d:1:1:18:00",
+          "raw_row": {"Instructor": "Piano D", "Event Type": "Studio Class"}
+        }
+      ],
+      "expect": {
+        "stu_piano_d_unplaced": {
+          "label": "reservation_internal",
+          "magnet_room": "R101"
+        }
+      }
+    }
+  ]
+}

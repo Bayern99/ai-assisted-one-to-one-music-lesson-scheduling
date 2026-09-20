@@ -1,0 +1,16 @@
+{
+  "priorities": {
+    "CustomRoom": {
+      "CustomStudent": 7
+    }
+  },
+  "constraints": {
+    "time_range": {
+      "start": "09:00"
+    },
+    "mystery_toggle": true
+  },
+  "experimental": {
+    "keep_me": "yes"
+  }
+}

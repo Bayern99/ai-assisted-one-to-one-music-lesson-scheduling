@@ -1,0 +1,20 @@
+.picker {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--structure-strong);
+  background: var(--raised);
+}
+
+.identity { min-width: 0; display: flex; align-items: center; gap: 9px; }
+.identity > svg { flex: 0 0 auto; color: var(--muted-readable); }
+.identity > div { min-width: 0; }
+.identity strong,
+.identity span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.identity strong { font-size: calc(12.5px + var(--text-size-offset)); font-weight: 500; }
+.identity span { margin-top: 2px; color: var(--muted-readable); font-family: var(--font-mono); font-size: calc(10.5px + var(--text-size-offset)); }
+.hiddenInput { position: fixed; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); opacity: 0; pointer-events: none; }
+.error { grid-column: 1 / -1; margin: 0; color: var(--error); font-size: calc(12px + var(--text-size-offset)); }

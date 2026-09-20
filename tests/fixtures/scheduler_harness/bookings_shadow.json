@@ -1,0 +1,18 @@
+[
+  {
+    "id": "shadow_evt",
+    "resourceId": "R102",
+    "startTime": "11:00:00",
+    "endTime": "12:00:00",
+    "daysOfWeek": [1],
+    "type": "weekly_lesson",
+    "extendedProps": {
+      "Instructor": "Instructor 0001",
+      "Student Name": "Shadow Student 0001",
+      "Student No": "S1",
+      "Study Year": "1",
+      "Course Code": "MUS101 (Piano)",
+      "day_en": "Monday"
+    }
+  }
+]

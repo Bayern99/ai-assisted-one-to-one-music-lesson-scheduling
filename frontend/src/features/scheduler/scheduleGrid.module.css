@@ -1,0 +1,657 @@
+.scheduleGrid {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 54px 378px;
+  overflow: hidden;
+}
+
+.scheduleToolbar {
+  min-width: 0;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  padding: 0 10px 0 12px;
+  border-bottom: 1px solid var(--structure);
+  background: var(--raised);
+}
+
+.daySelector,
+.scheduleFilters {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.daySelector button {
+  min-width: 38px;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 9px;
+  color: var(--muted-readable);
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  font-size: calc(10.5px + var(--text-size-offset));
+  cursor: pointer;
+}
+
+.daySelector button[aria-pressed='true'] {
+  color: var(--on-accent);
+  border-color: var(--ink);
+  background: var(--ink);
+  font-weight: 700;
+}
+
+.scheduleFilters label {
+  position: relative;
+  min-width: 0;
+}
+
+.scheduleFilters label > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.scheduleFilters select,
+.scheduleFilters input {
+  width: 92px;
+  min-height: 38px;
+  padding: 0 8px;
+  color: var(--ink-quiet);
+  border: 1px solid var(--structure-strong);
+  border-radius: 7px;
+  background: var(--surface);
+  font-size: calc(10.5px + var(--text-size-offset));
+}
+
+.scheduleFilters .searchFilter input {
+  width: 76px;
+}
+
+.gridRegion {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--grid);
+}
+
+.gridScroller {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.gridCanvas {
+  position: relative;
+  min-height: 100%;
+  min-width: 815px;
+  display: grid;
+  grid-template-columns: 74px minmax(741px, 1fr);
+  grid-template-rows: 30px repeat(var(--room-count), minmax(57px, 1fr));
+}
+
+.gridCanvas[data-drop-state='valid'] { cursor: grabbing; }
+.gridCanvas[data-drop-state='invalid'] { cursor: not-allowed; }
+.gridCanvas[data-pick-state='active'] { cursor: crosshair; }
+.gridCanvas[data-drop-state='invalid']::after {
+  position: absolute;
+  z-index: 9;
+  top: 34px;
+  right: 6px;
+  width: max-content;
+  padding: 3px 6px;
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--structure));
+  border-radius: var(--radius-micro);
+  color: var(--accent-readable);
+  background: var(--raised);
+  font-family: var(--font-mono);
+  font-size: calc(10.5px + var(--text-size-offset));
+  content: 'No valid target';
+  pointer-events: none;
+}
+
+.gridCorner,
+.timeHeading,
+.roomHeading,
+.gridCell {
+  min-width: 0;
+  border-right: 1px solid var(--structure);
+  border-bottom: 1px solid var(--structure);
+}
+
+.gridCorner,
+.timeHeading {
+  position: sticky;
+  z-index: 5;
+  top: 0;
+  grid-row: 1;
+  min-height: 30px;
+  background: var(--grid);
+}
+
+.gridCorner {
+  z-index: 7;
+  left: 0;
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  padding-left: 9px;
+  color: var(--muted-readable);
+  font-family: var(--font-mono);
+  font-size: calc(10.5px + var(--text-size-offset));
+}
+
+.timeHeading {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(var(--hour-count, 13), minmax(57px, 1fr));
+}
+
+.timeHeading span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted-readable);
+  border-right: 1px solid var(--structure);
+  font-family: var(--font-mono);
+  font-size: calc(10.5px + var(--text-size-offset));
+}
+
+.roomHeading {
+  position: sticky;
+  z-index: 4;
+  left: 0;
+  grid-column: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  padding-left: 9px;
+  overflow-wrap: anywhere;
+  color: var(--ink-quiet-strong);
+  background: var(--grid);
+  font-family: var(--font-mono);
+  font-size: calc(10.5px + var(--text-size-offset));
+  font-weight: 500;
+}
+
+.gridCell {
+  grid-column: 2;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--hour-count, 13), minmax(57px, 1fr));
+  background: var(--grid);
+}
+
+.hourCell {
+  position: relative;
+  border-right: 1px solid var(--structure);
+}
+
+.hourCell::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--grid-line-faint);
+  content: '';
+}
+
+.currentTime {
+  position: relative;
+  z-index: 3;
+  width: 1px;
+  grid-column: 2;
+  background: var(--accent);
+  opacity: .68;
+  pointer-events: none;
+}
+
+.currentTime::before {
+  position: absolute;
+  top: 5px;
+  left: -3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  content: '';
+}
+
+.dropTarget {
+  z-index: 1;
+  min-width: 12px;
+  align-self: center;
+  min-height: 42px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 3px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent-soft) 62%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent-readable);
+  font-family: var(--font-mono);
+  font-size: calc(9.5px + var(--text-size-offset));
+  font-weight: 700;
+  text-overflow: clip;
+  pointer-events: none;
+}
+
+.dropTarget[data-state='proposal'] {
+  border-width: 2px;
+  background: color-mix(in srgb, var(--accent-soft) 88%, var(--raised));
+}
+
+.assignment {
+  z-index: 2;
+  min-width: 24px;
+  min-height: 42px;
+  align-self: center;
+  display: grid;
+  align-content: center;
+  gap: 1px;
+  padding: 5px 6px;
+  overflow: hidden;
+  color: var(--dark-strong);
+  border: 1px solid var(--grid-border);
+  border-left: 2px solid var(--ink-faint);
+  border-radius: 6px;
+  background: var(--grid-muted);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 420ms var(--motion), opacity 420ms var(--motion);
+}
+
+.assignment:hover {
+  transform: translateY(-1px);
+}
+
+.assignment[aria-roledescription='draggable'] {
+  touch-action: none;
+}
+
+.dragPreview {
+  min-width: 24px;
+  min-height: 42px;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  padding: 7px 9px;
+  border: 1px solid var(--accent);
+  border-left-width: 2px;
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  background: var(--accent-soft);
+  box-shadow: var(--shadow-grid);
+  pointer-events: none;
+}
+
+.dragPreview span {
+  font-family: var(--font-mono);
+  font-size: calc(10.5px + var(--text-size-offset));
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.dragPreview strong {
+  overflow: hidden;
+  font-size: calc(10.5px + var(--text-size-offset));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dragPreview small {
+  overflow: hidden;
+  color: var(--muted-readable);
+  font-size: calc(10.5px + var(--text-size-offset));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dragPreview[data-kind='studio'] { border-style: dashed; background: var(--surface-subtle); }
+.dragPreview[data-kind='locked'] { background: repeating-linear-gradient(135deg, var(--surface), var(--surface) 5px, var(--grid-locked) 5px, var(--grid-locked) 9px); }
+
+.assignment[data-kind='studio'] {
+  border-style: dashed;
+  background: var(--grid-subtle);
+}
+
+.assignment[data-kind='locked'] {
+  border-style: solid;
+  background: repeating-linear-gradient(135deg, var(--surface), var(--surface) 5px, var(--grid-locked) 5px, var(--grid-locked) 9px);
+}
+
+.assignment[data-kind='held'],
+.assignment[data-presentation='ghost'] {
+  border-style: dashed;
+  color: color-mix(in srgb, var(--muted-readable) 88%, var(--ink));
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--surface-subtle) 88%, transparent),
+    color-mix(in srgb, var(--surface-subtle) 88%, transparent) 4px,
+    color-mix(in srgb, var(--muted) 22%, transparent) 4px,
+    color-mix(in srgb, var(--muted) 22%, transparent) 8px
+  );
+  opacity: 0.82;
+  cursor: default;
+  pointer-events: none;
+}
+
+.reservationChips {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 2px 3px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.reservationChip {
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: calc(10.5px + var(--text-size-offset));
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.reservationChip[data-chip-kind='placed'] {
+  color: var(--ink-quiet);
+  border: 1px solid var(--structure-strong);
+  background: var(--raised);
+}
+
+.reservationChip[data-chip-kind='unplaced'] {
+  color: var(--accent-readable);
+  border: 1px dashed var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--raised));
+}
+
+.assignment[data-lecture='true'] {
+  border-left-width: 3px;
+  border-left-color: var(--ink-faint);
+  cursor: default;
+}
+
+.assignment[data-lecture='true'] .assignmentKind {
+  letter-spacing: .02em;
+  text-transform: none;
+}
+
+.assignment[aria-pressed='true'] {
+  border-color: var(--accent);
+  border-left-color: var(--accent);
+  color: var(--accent-readable);
+  background: var(--accent-soft);
+}
+
+.assignment[data-issue-match='true'] {
+  box-shadow: inset 3px 0 var(--grid-line);
+}
+
+.assignment[data-presentation='teacher'] {
+  gap: 2px;
+  border-left-width: 3px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.assignment[data-presentation='teacher'][data-lecture='true'] {
+  cursor: default;
+  pointer-events: none;
+  background: repeating-linear-gradient(135deg, var(--surface), var(--surface) 5px, var(--grid-locked) 5px, var(--grid-locked) 9px);
+}
+
+.teacherSegmentName {
+  font-size: calc(12px + var(--text-size-offset));
+  font-weight: 600;
+}
+
+.assignment[data-presentation='teacher'][data-teacher-tone='0'] { background: color-mix(in srgb, var(--surface) 88%, var(--ink-muted)); border-left-color: var(--ink-muted); }
+.assignment[data-presentation='teacher'][data-teacher-tone='1'] { background: color-mix(in srgb, var(--surface) 86%, var(--ink)); border-left-color: color-mix(in srgb, var(--ink) 55%, var(--muted)); }
+.assignment[data-presentation='teacher'][data-teacher-tone='2'] { background: color-mix(in srgb, var(--surface) 84%, var(--ink-quiet)); border-left-color: var(--ink-quiet); }
+.assignment[data-presentation='teacher'][data-teacher-tone='3'] { background: color-mix(in srgb, var(--surface) 82%, var(--ink-soft)); border-left-color: var(--ink-soft); }
+.assignment[data-presentation='teacher'][data-teacher-tone='4'] { background: color-mix(in srgb, var(--surface-subtle) 80%, var(--ink-muted)); border-left-color: var(--ink-muted); }
+.assignment[data-presentation='teacher'][data-teacher-tone='5'] { background: color-mix(in srgb, var(--surface) 80%, var(--ink-quiet)); border-left-color: var(--ink-quiet); }
+.assignment[data-presentation='teacher'][data-teacher-tone='6'] { background: color-mix(in srgb, var(--surface-subtle) 78%, var(--ink-soft)); border-left-color: var(--ink-soft); }
+.assignment[data-presentation='teacher'][data-teacher-tone='7'] { background: color-mix(in srgb, var(--surface) 78%, var(--ink-muted)); border-left-color: var(--ink-muted); }
+
+.assignment[data-presentation='teacher'][aria-pressed='true'] {
+  border-color: var(--accent);
+  border-left-color: var(--accent);
+  color: var(--accent-readable);
+  background: var(--accent-soft);
+}
+
+.unplacedAssignments {
+  position: sticky;
+  z-index: 8;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  min-width: 100%;
+  border-top: 1px solid var(--structure-strong);
+  background: var(--surface);
+}
+
+.unplacedHeading {
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 9px;
+  border-left: 3px solid var(--accent);
+  border-bottom: 1px solid var(--structure);
+}
+
+.unplacedHeading h2 {
+  margin: 0;
+  font-size: calc(10.5px + var(--text-size-offset));
+}
+
+.unplacedList {
+  min-width: 0;
+  display: flex;
+  gap: 5px;
+  padding: 5px 8px;
+  overflow-x: auto;
+  max-height: 56px;
+}
+
+.unplacedAssignment {
+  flex: 0 0 160px;
+  min-height: 42px;
+}
+
+.assignmentKind {
+  font-family: var(--font-mono);
+  font-size: calc(10.5px + var(--text-size-offset));
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.assignment strong,
+.assignment > span:not(.assignmentKind) {
+  overflow: hidden;
+  font-size: calc(10.5px + var(--text-size-offset));
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+.empty,
+.gridNotice,
+.staleSelection,
+.error p {
+  margin: 0;
+  color: color-mix(in srgb, var(--muted) 72%, var(--ink));
+  font-size: calc(11px + var(--text-size-offset));
+}
+
+.empty,
+.gridNotice {
+  padding: 12px 14px;
+}
+
+.gridNotice,
+.staleSelection {
+  border-left: 3px solid var(--warning-readable);
+  background: var(--warning-soft);
+}
+
+
+.scheduleGrid { grid-template-rows: 48px minmax(0, 1fr); }
+.scheduleToolbar { min-height: 48px; padding-inline: 10px; }
+
+.daySelector button {
+  min-width: 42px;
+  min-height: 30px;
+  border-radius: var(--radius-sm);
+  font-size: calc(11.5px + var(--text-size-offset));
+  transition: color var(--motion-hover) ease-out, background-color var(--motion-hover) ease-out, transform var(--motion-press) ease-out;
+}
+.daySelector button:active { transform: translateY(1px) scale(.985); }
+
+.scheduleFilters select,
+.scheduleFilters input {
+  width: 116px;
+  min-height: 30px;
+  border-radius: var(--radius-sm);
+  background: var(--raised);
+  font-size: calc(11.5px + var(--text-size-offset));
+}
+.scheduleFilters .searchFilter input { width: 96px; }
+
+.gridRegion,
+.gridCorner,
+.timeHeading,
+.roomHeading,
+.gridCell { background: var(--surface-plain); }
+.gridCorner,
+.roomHeading,
+.timeHeading span { font-family: var(--font-mono); }
+.gridCorner { font-size: calc(10.5px + var(--text-size-offset)); }
+.timeHeading span { font-size: calc(10.5px + var(--text-size-offset)); }
+.roomHeading { font-size: calc(10.5px + var(--text-size-offset)); }
+
+.assignment {
+  padding: 5px 7px;
+  border-radius: var(--radius-sm);
+  transition:
+    border-color var(--motion-hover) ease-out,
+    background-color var(--motion-hover) ease-out,
+    box-shadow var(--motion-hover) ease-out,
+    transform var(--motion-press) ease-out;
+}
+.assignment:hover { transform: none; border-color: var(--structure-emphasis); background: var(--grid-hover); }
+.assignment:active { transform: scale(.99); }
+.assignment:focus-visible { outline: 0; box-shadow: var(--focus-ring); }
+.assignmentKind { font-family: var(--font-mono); font-size: calc(10.5px + var(--text-size-offset)); }
+.assignment strong { font-size: calc(11.5px + var(--text-size-offset)); font-weight: 500; line-height: 1.15; }
+.assignment > span:not(.assignmentKind) { font-size: calc(10.5px + var(--text-size-offset)); line-height: 1.18; }
+
+:global([data-mode='issue']) .scheduleGrid { grid-template-rows: 48px minmax(172px, 1fr); }
+
+@media (prefers-contrast: more) {
+  .gridCorner,
+  .timeHeading,
+  .roomHeading,
+  .gridCell,
+  .hourCell { border-color: var(--structure-strong); }
+}
+
+.scheduleGrid {
+  min-height: 0;
+}
+
+.gridCanvas {
+  min-width: 920px;
+  grid-template-columns: 74px minmax(846px, 1fr);
+}
+
+.timeHeading,
+.gridCell {
+  grid-template-columns: repeat(var(--hour-count, 13), minmax(65px, 1fr));
+}
+
+.assignment {
+  gap: 2px;
+  padding: 4px 5px;
+}
+
+.assignmentTopline {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 3px;
+}
+
+.assignmentTime {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: calc(10.5px + var(--text-size-offset));
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  letter-spacing: -.04em;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assignmentKind {
+  flex: 0 0 auto;
+  color: var(--muted-readable);
+  font-size: calc(10.5px + var(--text-size-offset));
+}
+
+.assignment > strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: calc(11.5px + var(--text-size-offset));
+  font-weight: 500;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assignmentInstructor {
+  display: none;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted-readable);
+  font-size: calc(10.5px + var(--text-size-offset));
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assignment[data-density='wide'] .assignmentInstructor {
+  display: block;
+}
+
+
+:global([data-mode='issue']) .scheduleGrid {
+  min-height: 0;
+  grid-template-rows: 48px minmax(122px, 1fr);
+}

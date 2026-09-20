@@ -1,0 +1,475 @@
+.page {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  container-type: inline-size;
+  container-name: resolve-page;
+}
+
+.resolveWorkspace {
+  min-width: 0;
+  min-height: 564px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 286px;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.workspaceModeSwitch {
+  display: flex; align-items: center; gap: 3px; padding: 3px;
+  border: 1px solid var(--bezel-shell-border); border-radius: var(--radius-pill);
+  background: var(--bezel-shell);
+  box-shadow: var(--bezel-inset-highlight);
+}
+
+.workspaceModeSwitch button {
+  min-height: 30px; padding: 0 12px;
+  color: var(--muted-readable); border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent; cursor: pointer;
+  transition: color var(--motion-hover) var(--motion), background var(--motion-hover) var(--motion), box-shadow var(--motion-hover) var(--motion);
+}
+
+.workspaceModeSwitch button:hover:not([aria-pressed='true']):not(:disabled) {
+  color: var(--ink); background: color-mix(in srgb, var(--raised) 70%, transparent);
+}
+
+.workspaceModeSwitch button:active:not(:disabled) { transform: scale(var(--press-scale)); }
+
+.workspaceModeSwitch button[aria-pressed='true'] {
+  color: var(--ink); background: var(--raised);
+  box-shadow: var(--elevation-rest), var(--bezel-inset-highlight); }
+
+.workspaceModeSwitch span { margin-left: 5px; }
+
+.schedulePane {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--structure-strong);
+  border-radius: 11px;
+  background: var(--raised);
+  box-shadow: var(--shadow-panel);
+}
+
+.schedulePane {
+  height: 564px;
+  display: grid;
+  grid-template-rows: 432px 94px 38px;
+}
+
+.schedulePane.issueMode {
+  height: auto;
+  min-height: 564px;
+  grid-template-rows: 300px auto 38px;
+  overflow: visible;
+}
+
+
+.scheduleLegend {
+  min-width: 0;
+  min-height: 38px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 10px;
+  padding: 6px 8px 6px 14px;
+  color: var(--muted-readable);
+  border-top: 1px solid var(--structure);
+  background: var(--raised);
+  font-size: calc(10.5px + var(--text-size-offset));
+}
+
+.legendKeys {
+  min-width: 0;
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+}
+
+.legendKeys > span { white-space: nowrap; }
+
+.legendHeld::before,
+.legendReservation::before {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 5px;
+  border-radius: 2px;
+  vertical-align: -1px;
+}
+
+.legendHeld::before {
+  border: 1px dashed var(--muted-readable);
+  background: repeating-linear-gradient(135deg, transparent, transparent 2px, color-mix(in srgb, var(--muted) 35%, transparent) 2px, color-mix(in srgb, var(--muted) 35%, transparent) 4px);
+}
+
+.legendReservation::before {
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.scheduleAuthorityBar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  margin-right: 4px;
+}
+
+.scheduleAuthorityState {
+  min-height: 22px;
+  padding: 0 10px;
+  color: var(--muted-readable);
+  border: 1px solid var(--bezel-shell-border);
+  border-radius: var(--radius-pill);
+  font-size: calc(10.5px + var(--text-size-offset));
+  font-weight: 600;
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  box-shadow: var(--bezel-inset-highlight);
+  transition: color var(--motion-status) var(--motion), background var(--motion-status) var(--motion), border-color var(--motion-status) var(--motion);
+}
+
+.scheduleAuthorityState[data-active='true'] {
+  color: var(--on-accent);
+  border-color: var(--ink);
+  background: var(--ink);
+}
+
+.autosaveHint {
+  color: var(--muted-readable);
+  font-size: calc(10.5px + var(--text-size-offset));
+  white-space: nowrap;
+}
+
+.legendMetrics,
+.canonicalMeta,
+.draftMeta {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  margin: -1px;
+  padding: 0;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.legendMetrics {
+  display: flex;
+}
+
+.legendMetrics div {
+  display: flex;
+}
+
+.legendMetrics dt::after {
+  content: ':';
+}
+
+.legendMetrics dd {
+  margin: 0 4px;
+}
+
+.legendCommands {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.legendCommands button,
+.legendCommands :global(.button) {
+  min-height: 26px;
+  padding: 0 7px;
+  color: var(--dark-muted);
+  border: 1px solid var(--structure);
+  border-radius: 5px;
+  background: var(--surface);
+  font-size: calc(10.5px + var(--text-size-offset));
+  font-weight: 500;
+}
+
+.legendCommands :global(.button--primary) {
+  color: var(--on-accent);
+  border-color: var(--ink);
+  background: var(--ink);
+}
+
+.legendCommands button:disabled {
+  opacity: .4;
+}
+
+
+.commandError {
+  padding: 12px 14px;
+  border-left: 3px solid var(--error);
+  background: var(--error-soft);
+  outline: none;
+}
+
+.commandError:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--error) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.commandError > p {
+  margin: 3px 0 0;
+  font-size: calc(11px + var(--text-size-offset));
+}
+
+.commandError > :global(.button) {
+  margin-top: 10px;
+}
+
+.errorDetails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 18px;
+  margin: 8px 0 0;
+}
+
+.errorDetails div {
+  display: flex;
+  gap: 6px;
+}
+
+.errorDetails dt {
+  color: color-mix(in srgb, var(--muted) 72%, var(--ink));
+  font-size: calc(10.5px + var(--text-size-offset));
+  text-transform: uppercase;
+}
+
+.errorDetails dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: calc(10.5px + var(--text-size-offset));
+}
+
+.editorMode {
+  color: color-mix(in srgb, var(--muted) 72%, var(--ink));
+  font-family: var(--font-mono);
+  font-size: calc(10.5px + var(--text-size-offset));
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.empty,
+.gridNotice,
+.staleSelection,
+.error p {
+  margin: 0;
+  color: color-mix(in srgb, var(--muted) 72%, var(--ink));
+  font-size: calc(11px + var(--text-size-offset));
+}
+
+.empty,
+.gridNotice {
+  padding: 12px 14px;
+}
+
+.gridNotice,
+.staleSelection {
+  border-left: 3px solid var(--warning-readable);
+  background: var(--warning-soft);
+}
+
+.staleSelection {
+  padding: 9px 12px;
+}
+
+.loading {
+  min-height: 480px;
+  display: flex;
+  align-items: flex-start;
+  padding: 18px;
+  border: 1px solid var(--structure);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.loading span {
+  color: color-mix(in srgb, var(--muted) 72%, var(--ink));
+  font-family: var(--font-mono);
+  font-size: calc(11px + var(--text-size-offset));
+}
+
+.error {
+  padding: 18px;
+  border-left: 3px solid var(--error);
+  background: var(--error-soft);
+}
+
+.error p {
+  margin-top: 4px;
+  color: var(--ink);
+}
+
+@media (max-height: 760px) {
+  .resolveWorkspace {
+    overflow: auto;
+  }
+}
+
+/* Quiet Precision schedule integration: preserve the existing spatial model. */
+.page {
+  min-height: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.page > .commandError,
+.page > .staleSelection {
+  position: absolute;
+  z-index: var(--z-status);
+  top: calc(var(--native-titlebar-inset) + 74px);
+  right: 314px;
+  left: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--structure-strong));
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-emphasis);
+  box-shadow: var(--shadow-status);
+}
+
+.resolveWorkspace {
+  --resolve-queue-width: 300px;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: var(--resolve-queue-width) 8px minmax(0, 1fr);
+  gap: 0;
+  border-top: 1px solid var(--structure);
+  background: var(--surface);
+}
+
+.resolveWorkspace.reconciliationMode { --resolve-queue-width: 420px; }
+.resolveWorkspace.reconciliationWithInspector,
+.resolveWorkspace.reconciliationMode.reconciliationWithInspector {
+  grid-template-columns: var(--resolve-queue-width) 8px minmax(920px, 1fr) 300px;
+  overflow: hidden;
+}
+.resolveWorkspace > :first-child { min-width: 0; overflow: hidden; }
+.queueSplitter {
+  position: relative;
+  z-index: 4;
+  width: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+}
+.queueSplitter::after {
+  content: '';
+  position: absolute;
+  inset: 0 3px;
+  background: var(--structure);
+}
+.queueSplitter:hover::after { background: var(--accent); }
+.reconciliationInspector { position: relative; min-width: 0; height: 100%; overflow: hidden; border-left: 1px solid var(--bezel-core-border); background: var(--surface-subtle); }
+/* Recessed tray: the inspector sits below the board, so it takes an inset
+   seam instead of an outer shadow. */
+.reconciliationInspector::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 14px 0 22px -22px color-mix(in srgb, var(--ink) 38%, transparent);
+}
+.resolveWorkspace,
+.reconciliationInspector { scrollbar-gutter: stable; }
+.resolveWorkspace .reconciliationInspector,
+.resolveWorkspace :global(.issueResults),
+.resolveWorkspace :global(.gridScroller) { scrollbar-width: auto; }
+.schedulePane {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  position: relative;
+  background: var(--raised);
+}
+
+/* Board is the raised core of the workstation; the queue and inspector are
+   recessed trays. Depth (not colour) carries the hierarchy. */
+.schedulePane {
+  height: auto;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+  border-right: 1px solid var(--structure-strong);
+}
+
+.schedulePane::before {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: var(--bezel-inset-highlight);
+}
+
+.scheduleLegend { font-size: calc(10.5px + var(--text-size-offset)); background: linear-gradient(color-mix(in srgb, var(--surface-subtle) 60%, var(--raised)), var(--raised)); }
+.scheduleLegend .legendKeys { flex: 1 1 100%; min-width: 0; flex-wrap: wrap; }
+.scheduleLegend .scheduleAuthorityBar { flex: 0 0 auto; }
+.scheduleLegend .autosaveHint { flex: 0 0 auto; }
+.scheduleLegend .legendCommands { flex: 1 1 auto; justify-content: flex-end; }
+.legendCommands button,
+.legendCommands :global(.button) { min-height: 28px; padding-inline: 8px; font-size: calc(10.5px + var(--text-size-offset)); }
+.legendCommands button,
+.legendCommands :global(.button) {
+  border-radius: var(--radius-pill);
+  transition: background var(--motion-hover) var(--motion), color var(--motion-hover) var(--motion), border-color var(--motion-hover) var(--motion), transform var(--motion-press) var(--motion);
+}
+.legendCommands button:hover:not(:disabled),
+.legendCommands :global(.button):hover:not(:disabled) { border-color: var(--structure-emphasis); background: var(--raised); }
+.legendCommands button:active:not(:disabled),
+.legendCommands :global(.button):active:not(:disabled) { transform: scale(var(--press-scale)); }
+.legendCommands :global(.button--primary):hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 88%, var(--accent)); }
+/* Scheduler Resolution usability contract ---------------------------------
+   The timetable, editor and issue queue are one continuous desktop
+   workstation. The editor must never fall below the native window viewport. */
+.page {
+  min-height: 0;
+}
+.resolveWorkspace {
+  /* Give the flex item a definite zero basis so the header is subtracted from
+     the native viewport before the schedule pane resolves its 100% height. */
+  height: 0;
+  flex: 1 1 0;
+  overflow: hidden;
+}
+.schedulePane {
+  height: 100%;
+  max-height: 100%;
+  grid-template-rows: minmax(190px, 1fr) auto;
+  overflow: hidden;
+}
+
+@media (max-height: 760px) {
+  .schedulePane {
+    grid-template-rows: minmax(170px, 1fr) auto;
+  }
+}
+
+@container resolve-page (max-width: 1519px) {
+  .resolveWorkspace.reconciliationWithInspector,
+  .resolveWorkspace.reconciliationMode.reconciliationWithInspector {
+    grid-template-columns: minmax(0, 1fr) 300px;
+  }
+
+  .resolveWorkspace.reconciliationWithInspector > :first-child,
+  .resolveWorkspace.reconciliationWithInspector > .queueSplitter {
+    display: none;
+  }
+}
