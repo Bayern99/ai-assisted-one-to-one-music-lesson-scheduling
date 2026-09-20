@@ -120,6 +120,6 @@ cd frontend && npm test
 
 ## License
 
-[GNU General Public License v3.0](LICENSE) or later. Copyright © 2026 Ang Cheng Kris Ho, Jiarui Duan, and Victor Jose Rodriguez.
+[GNU General Public License v3.0](LICENSE) or later. Copyright © 2026 Jiarui Duan.
 
 Fork, change, and share. If you distribute your version, it must stay under GPL-3.0 (or later): same license, source included. Using it only inside your own organization does not require publishing your changes.
