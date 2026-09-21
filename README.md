@@ -4,6 +4,8 @@ Local workspace for building one-to-one music-lesson timetables in a higher-educ
 
 The central student-record and room-booking systems stay the record of truth. This app is a local coordination layer for demo and research: it produces a checked timetable you can hand over.
 
+Version: `0.1.0`.
+
 ## Platform
 
 | | |
@@ -48,6 +50,8 @@ On `/schedule/resolve` the operator can start a whole-day investigation. Pi runs
 
 Scheduled times stay fixed unless the operator listed a time-change exception. Pi cannot assign, move, unassign, Stage, or Finalize. Applying a brief still goes through Python validation; the human confirms teachers and presses apply.
 
+A long investigation is not a black box: the panel shows the run’s phases (`investigating`, `saving_reconciliation`), elapsed time, provider retries, and tool-call / simulation counts from a bounded operation event stream, and it re-attaches to a running operation after a page reload.
+
 Without Pi installed the rest of the product still runs: import, rules, optimizer, manual Resolve, Stage, Finalize, export.
 
 ## How to use a round
@@ -55,7 +59,7 @@ Without Pi installed the rest of the product still runs: import, rules, optimize
 1. **Source Data** (`/students`) — roster context used for identity matching.
 2. **Lectures** (`/schedule/lectures`) — import registry classes that occupy specialised rooms.
 3. **Import** (`/schedule/import`) — Weekly and Studio workbooks; times and student numbers are normalised here.
-4. **Rules** (`/schedule/rules`) — time windows, room types, instructor preference, piano / voice constraints. Rules live in JSON, not in the solver code.
+4. **Rules** (`/schedule/rules`) — time windows, room types, instructor preference, piano / voice constraints. Rules live in JSON, not in the solver code. The page states what a save does and does not change (it governs the next Optimizer run and every Step 4 validation, but never rewrites the current draft, staged, or finalized layers by itself), shows live workspace state, and guards an unsaved draft when you leave.
 5. **Optimize** (`/schedule/optimize`) — `RoomAllocator` fills the board. Every leftover lesson has a stable `reason_code`.
 6. **Resolve** (`/schedule/resolve`) — drag or command assign / move / unassign. Optional: run Pi on the day, review the sandbox brief, apply. Then **Stage**, then **Finalize**.
 7. **Export** (`/schedule/export`) — Master, Weekly, and Studio workbooks for central booking.

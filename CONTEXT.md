@@ -1,6 +1,6 @@
 # AI-Assisted One-to-One Music Lesson Scheduling
 
-Desktop workspace for auditable one-to-one music-instruction scheduling. This glossary is the occupancy and Step 4 judgement language for the 4.7 instructor-reservation work. It is not an implementation spec.
+Desktop workspace for auditable one-to-one music-instruction scheduling. This glossary is the occupancy, Step 4, and rules-layer judgement language for the 4.7–4.8.1 work. It is not an implementation spec.
 
 ## Language
 
@@ -35,3 +35,7 @@ _Avoid_: Pi diagnosis as the occupancy reason
 **L0 / L1 / Stage / Finalize**:
 L0 is the live Step 4 draft (`assignments` + `unassigned_lessons`). Stage copies L0 PI into an independent L1 snapshot (`validation_authority`) and does not write `bookings.json`, set `round_committed`, or clear `dirty`. Ghosts are L1∖L0. Finalize is the only L2 commit. Editing means L0 has diverged from L1 (`unsealed` or stale).
 _Avoid_: Treating Stage as Finalize; using committed bookings as the live PI lock while the operator is still editing L0
+
+**Rules impact**:
+What saving the canonical Rules document does and does not change. A save governs the next Run Optimizer and every Step 4 validation (room legality, priorities, time-change pool, operating window) but never rewrites existing layers by itself: the current draft keeps its placements until the Optimizer re-runs, and a staged or finalized schedule keeps the rules it was validated under until the operator re-Stages and re-Finalizes.
+_Avoid_: Reading "saved" as "applied to the current draft"; assuming a save retroactively re-validates staged or finalized output

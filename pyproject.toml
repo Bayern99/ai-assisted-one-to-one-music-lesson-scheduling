@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ai-assisted-one-to-one-music-lesson-scheduling"
-version = "4.8.0"
+version = "0.1.0"
 description = "AI-Assisted One-to-One Music Lesson Scheduling — research demonstration"
 readme = "README.md"
 license = "GPL-3.0-or-later"
