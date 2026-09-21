@@ -82,7 +82,7 @@ def data_with_different_instructor_studio():
     return {
         "assignments": [
             {
-                "id": "studio_wong_mar4",
+                "id": "studio_instructor_0012_mar4",
                 "resourceId": "R101",
                 "start": "2026-03-04T14:00:00",  # Wed
                 "end": "2026-03-04T15:00:00",

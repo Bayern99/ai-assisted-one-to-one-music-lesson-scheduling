@@ -22,7 +22,7 @@ def test_prepare_studio_requests_filters_incompatible_preferences_and_splits_slo
     df = pd.DataFrame(
         [
             {
-                "Instructor": "Dr. Kim",
+                "Instructor": "Instructor 0004",
                 "Instruments": "Piano",
                 "Preferred Venue": "CC105, R101",
                 "Studio 1 Date": "2026年3月30日 星期一",
@@ -40,7 +40,7 @@ def test_prepare_studio_requests_filters_incompatible_preferences_and_splits_slo
     assert rejections == []
     assert len(requests) == 2
     assert [req["id_suffix"] for req in requests] == ["0_1_0", "0_1_1"]
-    assert all(req["inst"] == "Dr. Kim" for req in requests)
+    assert all(req["inst"] == "Instructor 0004" for req in requests)
     assert all(req["instrument"] == "Piano" for req in requests)
     assert all(req["prefs"] == ["CC105"] for req in requests)
     assert [req["start"] for req in requests] == [18, 19]
@@ -52,14 +52,14 @@ def test_prepare_studio_requests_keeps_row_preferences_per_request_for_same_inst
     df = pd.DataFrame(
         [
             {
-                "Instructor": "Dr. Kim",
+                "Instructor": "Instructor 0004",
                 "Instruments": "Piano",
                 "Preferred Venue": "CC105",
                 "Studio 1 Date": "2026年3月30日 星期一",
                 "Studio 1 Time": "18:00-19:00",
             },
             {
-                "Instructor": "Dr. Kim",
+                "Instructor": "Instructor 0004",
                 "Instruments": "Piano",
                 "Preferred Venue": "CC106",
                 "Studio 1 Date": "2026年3月31日 星期二",
@@ -76,8 +76,8 @@ def test_prepare_studio_requests_keeps_row_preferences_per_request_for_same_inst
 
     assert rejections == []
     assert [(req["inst"], req["prefs"]) for req in requests] == [
-        ("Dr. Kim", ["CC105"]),
-        ("Dr. Kim", ["CC106"]),
+        ("Instructor 0004", ["CC105"]),
+        ("Instructor 0004", ["CC106"]),
     ]
 
 
@@ -146,7 +146,7 @@ def test_prepare_studio_requests_returns_malformed_time_rejection_descriptor():
     df = pd.DataFrame(
         [
             {
-                "Instructor": "Dr. Kim",
+                "Instructor": "Instructor 0004",
                 "Instruments": "Piano",
                 "Preferred Venue": "CC105",
                 "Studio 1 Date": "2026年3月30日 星期一",
@@ -166,7 +166,7 @@ def test_prepare_studio_requests_returns_malformed_time_rejection_descriptor():
     rejection = rejections[0]
     assert rejection["reason_code"] == "invalid_course_time"
     assert "malformed class time" in rejection["log_line"].lower()
-    assert rejection["payload"]["inst"] == "Dr. Kim"
+    assert rejection["payload"]["inst"] == "Instructor 0004"
     assert rejection["payload"]["date"] == "2026-03-30"
     assert rejection["payload"]["day"] == 1
     assert rejection["payload"]["start"] == 0

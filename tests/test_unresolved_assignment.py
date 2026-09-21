@@ -654,9 +654,9 @@ def test_controller_simulates_a_multi_issue_plan_without_mutating_the_draft():
     second = unresolved_record(
         id="wk_reject_S101_source-row-8",
         sid="S101",
-        student="Mei Lin",
+        student="Student 0002",
         raw_row={
-            "Student Name": "Mei Lin",
+            "Student Name": "Student 0002",
             "Student No": "S101",
             "Instructor": "Instructor 0002",
             "Course Code": "MUS101 Piano",

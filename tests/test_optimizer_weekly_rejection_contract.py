@@ -132,7 +132,7 @@ def test_process_studio_reports_malformed_class_time_via_unified_rejection():
 
     studio_rows = [
         {
-            "Instructor": "Dr. Kim",
+            "Instructor": "Instructor 0004",
             "Instruments": "Piano",
             "Preferred Venue": "CC105",
             "Studio 1 Date": "2026年3月30日 星期一",
@@ -147,7 +147,7 @@ def test_process_studio_reports_malformed_class_time_via_unified_rejection():
     assert len(allocator.unassigned) >= 1
     rejection = allocator.unassigned[0]
     assert rejection["reason_code"] == "invalid_course_time"
-    assert rejection["inst"] == "Dr. Kim"
+    assert rejection["inst"] == "Instructor 0004"
     assert "raw_row" in rejection
 
 

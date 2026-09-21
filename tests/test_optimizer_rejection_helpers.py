@@ -29,7 +29,7 @@ def test_build_weekly_rejection_entry_uses_safe_defaults_and_normalized_fields()
         {
             "Student Name": "Student 0001",
             "Student No": "S1",
-            "Instructor": "Dr. Kim",
+            "Instructor": "Instructor 0004",
             "Course Code": "MUS101 Voice",
             "Day of Week": "Monday",
             "Class Time": "09:00-10:00",
@@ -45,7 +45,7 @@ def test_build_weekly_rejection_entry_uses_safe_defaults_and_normalized_fields()
     assert entry["id"] == "wk_reject_S1_4"
     assert entry["student"] == "Student 0001"
     assert entry["sid"] == "S1"
-    assert entry["inst"] == "Dr. Kim"
+    assert entry["inst"] == "Instructor 0004"
     assert entry["day"] == 1
     assert entry["start"] == 9
     assert entry["end"] == 10
@@ -83,13 +83,13 @@ def test_build_weekly_rejection_entry_zeroes_range_on_malformed_time():
 
 def test_build_studio_failed_unassigned_preserves_req_shape():
     req = {
-        "inst": "Dr. Kim",
+        "inst": "Instructor 0004",
         "start": 18,
         "end": 19,
         "day": 1,
         "date": "2026-03-30",
         "id_suffix": "1_0",
-        "raw_row": {"Instructor": "Dr. Kim", "Class Time": "18:00-19:00"},
+        "raw_row": {"Instructor": "Instructor 0004", "Class Time": "18:00-19:00"},
     }
 
     entry = build_studio_failed_unassigned(
@@ -99,14 +99,14 @@ def test_build_studio_failed_unassigned_preserves_req_shape():
     )
 
     assert entry == {
-        "id": "stu_Dr. Kim_1_0_failed",
+        "id": "stu_Instructor 0004_1_0_failed",
         "student": "Studio",
-        "inst": "Dr. Kim",
+        "inst": "Instructor 0004",
         "start": 18,
         "end": 19,
         "day": 1,
         "date": "2026-03-30",
-        "raw_row": {"Instructor": "Dr. Kim", "Class Time": "18:00-19:00"},
+        "raw_row": {"Instructor": "Instructor 0004", "Class Time": "18:00-19:00"},
         "reason": "Blocked by locked context",
         "reason_code": "blocked_by_locked_context",
     }

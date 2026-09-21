@@ -317,11 +317,11 @@ describe('PiReconciliationPanel', () => {
     } as never)
     renderPanel(investigationWith())
 
-    fireEvent.change(screen.getByLabelText('对 Pi 说'), { target: { value: '不要动王老师，那两节 Voice 可以改时' } })
+    fireEvent.change(screen.getByLabelText('对 Pi 说'), { target: { value: '不要动 Instructor 0009，那两节 Voice 可以改时' } })
     fireEvent.click(screen.getByRole('button', { name: '按这句话再查' }))
 
     await waitFor(() => expect(investigateReconciliation).toHaveBeenCalledWith('gpt-5.6-luna', 'v1', 1, {
-      goal: '不要动王老师，那两节 Voice 可以改时',
+      goal: '不要动 Instructor 0009，那两节 Voice 可以改时',
       provider: 'openai-codex',
       thinkingLevel: 'off',
     }))

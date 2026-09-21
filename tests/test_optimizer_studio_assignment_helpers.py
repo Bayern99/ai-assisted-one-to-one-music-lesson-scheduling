@@ -50,7 +50,7 @@ def test_assign_studio_requests_sorts_requests_and_checks_preferred_room_first()
 
 def test_assign_studio_requests_uses_highest_scoring_room():
     created = []
-    request = _request("Dr. Kim", "2026-03-30", 18, 19, prefs=[])
+    request = _request("Instructor 0004", "2026-03-30", 18, 19, prefs=[])
 
     assign_studio_requests(
         requests=[request],
@@ -66,11 +66,11 @@ def test_assign_studio_requests_uses_highest_scoring_room():
         describe_room_occupant=lambda req, room_id: None,
     )
 
-    assert created == [("Dr. Kim", "B")]
+    assert created == [("Instructor 0004", "B")]
 
 
 def test_assign_studio_requests_routes_failures_with_diagnostics_and_summary():
-    request = _request("Dr. Kim", "2026-03-30", 18, 19, prefs=[], instrument="Piano")
+    request = _request("Instructor 0004", "2026-03-30", 18, 19, prefs=[], instrument="Piano")
     unassigned = []
 
     logs = assign_studio_requests(
@@ -88,10 +88,10 @@ def test_assign_studio_requests_routes_failures_with_diagnostics_and_summary():
     )
 
     assert logs == [
-        "❌ Studio Failed: Dr. Kim @ 2026-03-30 (No Room/Time Constraint)",
+        "❌ Studio Failed: Instructor 0004 @ 2026-03-30 (No Room/Time Constraint)",
         "      🔍 Saturation Check (Why did 'Piano' fail?):",
         "      - A: 🔴 Locked (Lecture)",
         "      - B: ⛔ Closed (Time Constraint)",
         "✅ Scheduled 0/1 Studio Classes.",
     ]
-    assert unassigned == [("Dr. Kim", "blocked_by_locked_context", "Blocked by locked context")]
+    assert unassigned == [("Instructor 0004", "blocked_by_locked_context", "Blocked by locked context")]

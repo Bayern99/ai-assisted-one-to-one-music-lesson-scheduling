@@ -7,11 +7,11 @@ from modules.scheduler.logic.optimizer_diagnostics import (
 
 
 def test_build_studio_failure_header_preserves_current_copy():
-    req = {"inst": "Dr. Kim", "date": "2026-03-30"}
+    req = {"inst": "Instructor 0004", "date": "2026-03-30"}
 
     line = build_studio_failure_header(req)
 
-    assert line == "❌ Studio Failed: Dr. Kim @ 2026-03-30 (No Room/Time Constraint)"
+    assert line == "❌ Studio Failed: Instructor 0004 @ 2026-03-30 (No Room/Time Constraint)"
 
 
 def test_build_studio_saturation_intro_mentions_instrument():
