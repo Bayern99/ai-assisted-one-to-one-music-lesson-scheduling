@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
@@ -40,6 +40,16 @@ const rulesView = {
     ignored_top_level_keys: ['installation_extension'],
     hidden_ui_fields: ['constraints.room_stability_weight'],
   },
+  impact: {
+    draft_assignment_count: 12,
+    draft_unresolved_count: 3,
+    draft_dirty: false,
+    staged_assignment_count: 10,
+    staged: true,
+    authority_stale: false,
+    finalized: false,
+    has_source_data: true,
+  },
 }
 
 const envelope = (data: unknown, version = 'workspace-v1', warnings: string[] = []) => ({
@@ -70,11 +80,14 @@ afterAll(() => server.close())
 
 function renderPage(path = '/schedule/rules/constraints') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
-  const router = createMemoryRouter([{ path: '/schedule/rules/:section?', element: <RulesPage /> }], {
+  const router = createMemoryRouter([
+    { path: '/schedule/rules/:section?', element: <RulesPage /> },
+    { path: '/schedule/optimize', element: <div>Optimizer placeholder</div> },
+  ], {
     initialEntries: [path],
   })
   render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>)
-  return { client }
+  return { client, router }
 }
 
 describe('RulesPage', () => {
@@ -270,5 +283,55 @@ describe('RulesPage', () => {
     expect(within(dialog).getByText('a3')).toBeVisible()
     expect(within(dialog).getByText('2', { selector: 'dd' })).toBeVisible()
     expect(within(dialog).getByText(/does not change the schedule/)).toBeVisible()
+  })
+
+  it('explains which scheduler layers the rules affect and shows the live workspace state', async () => {
+    renderPage()
+
+    const panel = await screen.findByLabelText('Rules scope and impact')
+    expect(within(panel).getByText(/Govern the next/)).toBeVisible()
+    expect(within(panel).getByText(/Never rewrite existing layers/)).toBeVisible()
+    expect(await within(panel).findByText(/12 placed · 3 unplaced · staged authority covers 10 lessons/)).toBeVisible()
+    expect(within(panel).getByText(/Run Optimizer again, then Stage and Finalize/)).toBeVisible()
+  })
+
+  it('warns before leaving the rules workspace with unsaved changes', async () => {
+    const user = userEvent.setup()
+    const { router } = renderPage('/schedule/rules/resolution')
+    const firstInstructor = await screen.findByRole('checkbox', { name: 'Allow time changes for Instructor 0008' })
+    await user.click(firstInstructor)
+    expect(screen.getByText('Unsaved Changes')).toBeVisible()
+
+    await act(() => router.navigate('/schedule/optimize'))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Leave Without Saving Rules?' })
+    expect(within(dialog).getByText(/unsaved rule changes will be lost/i)).toBeVisible()
+    await user.click(within(dialog).getByRole('button', { name: 'Keep Editing' }))
+    expect(screen.queryByRole('dialog', { name: 'Leave Without Saving Rules?' })).toBeNull()
+    expect(screen.getByText('Unsaved Changes')).toBeVisible()
+  })
+
+  it('discards the draft and leaves when the operator confirms the blocker dialog', async () => {
+    const user = userEvent.setup()
+    const { router } = renderPage('/schedule/rules/resolution')
+    const firstInstructor = await screen.findByRole('checkbox', { name: 'Allow time changes for Instructor 0008' })
+    await user.click(firstInstructor)
+
+    await act(() => router.navigate('/schedule/optimize'))
+    const dialog = await screen.findByRole('dialog', { name: 'Leave Without Saving Rules?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Discard and Leave' }))
+
+    expect(await screen.findByText('Optimizer placeholder')).toBeVisible()
+  })
+
+  it('does not block section switches inside the rules workspace', async () => {
+    const user = userEvent.setup()
+    renderPage('/schedule/rules/resolution')
+    const firstInstructor = await screen.findByRole('checkbox', { name: 'Allow time changes for Instructor 0008' })
+    await user.click(firstInstructor)
+
+    await user.click(screen.getByRole('link', { name: /^Constraints/ }))
+    expect(await screen.findByLabelText('Earliest lesson start')).toHaveValue('08:00')
+    expect(screen.getByText('Unsaved Changes')).toBeVisible()
   })
 })

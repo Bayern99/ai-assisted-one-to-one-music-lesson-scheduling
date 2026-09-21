@@ -35,6 +35,36 @@ def load_rules(context: Any) -> dict:
         "rules": canonical,
         "source_path": str(source_path),
         "trace": trace,
+        "impact": _workspace_rules_impact(context),
+    }
+
+
+def _workspace_rules_impact(context: Any) -> dict:
+    """Snapshot of the scheduler layers the saved rules will (and won't) affect.
+
+    Rules are a canonical document: they govern the next Optimizer run and every
+    validation pass, but they never rewrite existing layers by themselves. The
+    frontend renders these facts so the operator can see exactly what a save
+    means for the draft, the staged authority, and finalized output.
+    """
+    from modules.api.services.scheduler import restore_scheduler_state
+    from modules.scheduler.logic.validation_authority import (
+        authority_assignments,
+        authority_stale,
+    )
+
+    state = restore_scheduler_state(context)
+    edit_session = ensure_step4_edit_session(state)
+    staged = authority_assignments(edit_session)
+    return {
+        "draft_assignment_count": len(edit_session.get("assignments") or []),
+        "draft_unresolved_count": len(edit_session.get("unassigned_lessons") or []),
+        "draft_dirty": bool(edit_session.get("dirty")),
+        "staged_assignment_count": len(staged),
+        "staged": bool(staged),
+        "authority_stale": authority_stale(edit_session),
+        "finalized": bool(state.get("round_committed")),
+        "has_source_data": bool(state.get("wk_df") is not None),
     }
 
 
@@ -45,6 +75,7 @@ def save_rules(context: Any, rules: dict) -> dict:
         "rules": canonical,
         "source_path": str(path),
         "trace": trace,
+        "impact": _workspace_rules_impact(context),
     }
 
 

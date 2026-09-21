@@ -755,3 +755,62 @@ def test_configuration_routes_require_authentication(client):
         response.json()["error"]["code"] == "AUTH_REQUIRED"
         for response in responses
     )
+
+
+def test_rules_view_and_save_response_describe_scheduler_impact(auth_client):
+    base_dir = auth_client.app.state.config.base_dir
+    state = {
+        "step4_edit_session": {
+            "optimizer_run_id": "run-impact",
+            "assignments": [
+                {
+                    "id": "a1",
+                    "type": "weekly_lesson",
+                    "title": "Piano",
+                    "resourceId": "CC101",
+                    "daysOfWeek": [1],
+                    "startTime": "09:00:00",
+                    "endTime": "10:00:00",
+                    "extendedProps": {"Instructor": "Instructor 0008"},
+                }
+            ],
+            "unassigned_lessons": [
+                {
+                    "id": "u1",
+                    "source_request_id": "req-1",
+                    "raw_row": {"Instructor": "Instructor 0008", "Day of Week": "Monday"},
+                }
+            ],
+            "history": [],
+            "redo_stack": [],
+            "dirty": False,
+        }
+    }
+    from modules.shared.session_manager import SessionManager
+
+    SessionManager(base_dir=str(base_dir)).save_session(state)
+
+    response = auth_client.get("/api/scheduler/rules")
+    assert response.status_code == 200
+    impact = response.json()["data"]["impact"]
+    assert impact["draft_assignment_count"] == 1
+    assert impact["draft_unresolved_count"] == 1
+    # A session without an explicit stage auto-seeds its authority from the
+    # current draft, so the staged layer already covers the draft lessons.
+    assert impact["staged"] is True
+    assert impact["staged_assignment_count"] == 1
+    assert impact["authority_stale"] is False
+    assert impact["finalized"] is False
+    assert impact["has_source_data"] is False
+
+    version = response.json()["workspace_version"]
+    payload = {
+        "rules": {"room_types": {"CC101": ["Piano"]}},
+        "expected_version": version,
+    }
+    saved = auth_client.put("/api/scheduler/rules", json=payload)
+    assert saved.status_code == 200
+    saved_impact = saved.json()["data"]["impact"]
+    assert saved_impact["draft_assignment_count"] == 1
+    assert saved_impact["draft_unresolved_count"] == 1
+    assert saved_impact["staged_assignment_count"] == 1

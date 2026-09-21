@@ -330,6 +330,7 @@ class SchedulerRulesView(_StrictModel):
     rules: dict[str, Any]
     source_path: str
     trace: dict[str, Any]
+    impact: Optional[dict[str, Any]] = None
 
 
 class SchedulerRulesSaveRequest(_StrictModel):

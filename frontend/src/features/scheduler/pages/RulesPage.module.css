@@ -324,6 +324,19 @@
   color:var(--muted-readable);
   font-size:calc(11px + var(--text-size-offset));
 }
+.rulesImpact {
+  margin:10px 18px 0;
+  padding:10px 12px;
+  border:1px solid var(--structure);
+  border-radius:var(--radius-shell);
+  background:var(--surface-subtle);
+  font-size:calc(11.5px + var(--text-size-offset));
+  color:var(--muted-readable);
+}
+.rulesImpact strong { display:block; margin-bottom:4px; color:inherit; }
+.rulesImpact ul { margin:0 0 6px; padding-left:18px; }
+.rulesImpact li + li { margin-top:2px; }
+.rulesImpactState { margin:0; border-top:1px solid var(--structure); padding-top:6px; }
 .rulesToolbarActions {
   display:flex !important;
   grid-auto-flow:column;

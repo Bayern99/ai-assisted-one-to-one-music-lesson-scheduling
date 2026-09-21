@@ -1,7 +1,7 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, Navigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useBlocker, useParams } from 'react-router-dom'
 import { PAGE_TITLES } from '../../../app/productLanguage'
 import { ApiClientError, apiRequest, type ApiEnvelope } from '../../../api/client'
 import { Button } from '../../../components/common/Button'
@@ -247,6 +247,38 @@ function RoomsEditor({
   </fieldset>
 }
 
+type RulesImpact = {
+  draft_assignment_count?: number
+  draft_unresolved_count?: number
+  draft_dirty?: boolean
+  staged_assignment_count?: number
+  staged?: boolean
+  authority_stale?: boolean
+  finalized?: boolean
+  has_source_data?: boolean
+}
+
+function RulesImpactPanel({ impact }: { impact: RulesImpact | null | undefined }) {
+  return <aside className={styles.rulesImpact} data-testid="rules-impact" aria-label="Rules scope and impact">
+    <strong>Where these rules apply</strong>
+    <ul>
+      <li>Govern the next <em>Run Optimizer</em> and every Step 4 validation: room legality, priorities, time-change pool, operating window.</li>
+      <li>Never rewrite existing layers by themselves: the current draft keeps its placements until you re-run the Optimizer; a staged or finalized schedule keeps the rules it was validated under until you re-Stage and re-Finalize.</li>
+    </ul>
+    {impact ? <p className={styles.rulesImpactState}>
+      {'Current workspace: '}
+      {Number(impact.draft_assignment_count ?? 0)} placed · {Number(impact.draft_unresolved_count ?? 0)} unplaced
+      {impact.staged ? ` · staged authority covers ${Number(impact.staged_assignment_count ?? 0)} lessons${impact.authority_stale ? ' (stale after edits)' : ''}` : ' · nothing staged yet'}
+      {impact.finalized ? ' · a finalized round exists' : ''}
+      {'. '}
+      {!impact.has_source_data ? 'Import Sources first; ' : ''}
+      {(Number(impact.draft_assignment_count ?? 0) > 0 || impact.staged) && !impact.finalized
+        ? 'To apply changed rules: Run Optimizer again, then Stage and Finalize.'
+        : 'Changed rules take effect on the next Optimizer run.'}
+    </p> : null}
+  </aside>
+}
+
 export function RulesPage() {
   const { section } = useParams<{ section?: string }>()
   const activeSection = (section ?? 'constraints') as RuleSection
@@ -275,6 +307,22 @@ export function RulesPage() {
 
   const dirty = draft !== null && JSON.stringify(draft) !== JSON.stringify(baseline)
   const readOnly = sessionQuery.isError || rulesQuery.isError
+  // Block only when leaving the rules workspace. Section switches keep the
+  // same mounted editor, so the draft survives them and must not prompt.
+  const blocker = useBlocker(
+    ({ nextLocation }) => dirty && !nextLocation.pathname.startsWith('/schedule/rules'),
+  )
+
+  useEffect(() => {
+    if (!dirty) return
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      // WebKit (the desktop shell) only raises the prompt when returnValue is set.
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
   const rooms = (sessionQuery.data?.data?.rooms ?? []).map((room) => room.id)
   const timeRange = draft ? asRecord(asRecord(draft.constraints).time_range) : {}
   const validTimes = isCanonicalTime(String(fieldValue(timeRange.start))) && isCanonicalTime(String(fieldValue(timeRange.end)))
@@ -362,6 +410,7 @@ export function RulesPage() {
       </nav>
       <WorkspaceSurface className={styles.rulesEditorSurface}>
         <WorkspaceToolbar className={styles.actionRail}><div><strong>Canonical Rules</strong><span>Each editor updates one shared draft; saving commits the complete rules document.</span></div><div className={styles.rulesToolbarActions}><Button loading={reconciliationMutation.isPending} loadingLabel="Checking Data Integrity" onClick={() => reconciliationMutation.mutate()} variant="secondary">Check Data Integrity</Button><Button onClick={() => dirty ? setReloadOpen(true) : void reloadCanonical()} variant="secondary">Reload Rules</Button></div></WorkspaceToolbar>
+        <RulesImpactPanel impact={(view?.impact ?? null) as RulesImpact | null} />
         {sessionQuery.isPending || rulesQuery.isPending || !draft ? <div aria-label="Loading scheduler rules" className={`${styles.skeleton} ${styles.rulesSkeleton}`} /> : null}
         <InlineError error={sessionQuery.error ?? rulesQuery.error ?? saveMutation.error ?? reconciliationMutation.error} />
         {sessionQuery.isError || rulesQuery.isError ? <Button onClick={() => void Promise.all([sessionQuery.refetch(), rulesQuery.refetch()])} variant="secondary">Retry Rules Workspace</Button> : null}
@@ -373,6 +422,7 @@ export function RulesPage() {
         <div className={styles.rulesCommandBar}><span>{dirty ? 'Canonical draft has unsaved changes.' : 'Canonical rules are up to date.'}{dirty && !validTimes ? ' Enter both operating times as HH:MM before saving.' : ''}</span><Button disabled={!dirty || !validTimes || !baselineVersion || saveMutation.isPending || readOnly} onClick={() => saveMutation.mutate()}>Save Rules</Button></div>
       </WorkspaceSurface>
     </div>
+    <Dialog.Root onOpenChange={(open) => { if (!open && blocker.state === 'blocked') blocker.reset() }} open={blocker.state === 'blocked'}><Dialog.Portal><Dialog.Overlay className={styles.dialogOverlay} /><Dialog.Content className={styles.dialogContent}><Dialog.Title>Leave Without Saving Rules?</Dialog.Title><Dialog.Description>Your unsaved rule changes will be lost. Saved rules only take effect when you press Save Rules.</Dialog.Description><div className={styles.dialogActions}><Dialog.Close asChild><Button variant="secondary">Keep Editing</Button></Dialog.Close><Button onClick={() => blocker.proceed?.()}>Discard and Leave</Button></div></Dialog.Content></Dialog.Portal></Dialog.Root>
     <Dialog.Root onOpenChange={setReloadOpen} open={reloadOpen}><Dialog.Portal><Dialog.Overlay className={styles.dialogOverlay} /><Dialog.Content className={styles.dialogContent}><Dialog.Title>Discard Unsaved Rule Changes?</Dialog.Title><Dialog.Description>Reloading replaces the shared Rules draft with the latest canonical workspace version.</Dialog.Description><div className={styles.dialogActions}><Dialog.Close asChild><Button variant="secondary">Keep Editing</Button></Dialog.Close><Button onClick={() => void reloadCanonical()}>Discard and Reload</Button></div></Dialog.Content></Dialog.Portal></Dialog.Root>
     <Dialog.Root onOpenChange={setReconciliationOpen} open={reconciliationOpen}><Dialog.Portal><Dialog.Overlay className={styles.dialogOverlay} /><Dialog.Content className={`${styles.dialogContent} ${styles.reconciliationDialog}`}><Dialog.Title>Data Integrity Check</Dialog.Title><Dialog.Description>Compare imported source rows with the current Resolution draft. This diagnostic does not change the schedule.</Dialog.Description>{reconciliationMutation.data?.data ? <ReconciliationResults report={reconciliationMutation.data.data} /> : null}<div className={styles.dialogActions}><Dialog.Close asChild><Button variant="secondary">Close</Button></Dialog.Close></div></Dialog.Content></Dialog.Portal></Dialog.Root>
   </div>
