@@ -23,12 +23,14 @@ class ApiProblem(Exception):
         code: str,
         message: str,
         details: dict[str, Any] | None = None,
+        operation_id: str | None = None,
     ) -> None:
         super().__init__(message)
         self.status_code = status_code
         self.code = code
         self.message = message
         self.details = details
+        self.operation_id = operation_id
 
 
 def error_response(
@@ -37,9 +39,15 @@ def error_response(
     message: str,
     details: dict[str, Any] | None = None,
     headers: dict[str, str] | None = None,
+    operation_id: str | None = None,
 ) -> JSONResponse:
     envelope = ApiEnvelope(
-        error=ApiErrorPayload(code=code, message=message, details=details)
+        error=ApiErrorPayload(
+            code=code,
+            message=message,
+            details=details,
+            operation_id=operation_id,
+        )
     )
     return JSONResponse(
         status_code=status_code,
@@ -117,6 +125,7 @@ async def _api_problem_handler(request: Request, exc: ApiProblem) -> JSONRespons
         code=exc.code,
         message=exc.message,
         details=exc.details,
+        operation_id=exc.operation_id,
     )
 
 

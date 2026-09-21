@@ -1,17 +1,9 @@
 import type { Operation } from './api'
 import operationStyles from './OperationProgress.module.css'
+import { PHASE_LABELS } from './operationPhases'
 import workspaceStyles from './schedulerWorkspace.module.css'
 
 const styles = new Proxy(workspaceStyles, { get: (target, key: string) => target[key] ?? operationStyles[key] })
-
-const PHASE_LABELS: Record<string, string> = {
-  queued: 'Queued for local execution',
-  preflight: 'Checking scheduler inputs',
-  optimizing: 'Optimizing room assignments',
-  persisting: 'Saving the scheduling draft',
-  completed: 'Optimizer run completed',
-  failed: 'Optimizer run failed',
-}
 
 function numericResult(result: Record<string, unknown> | null | undefined, key: string) {
   const value = result?.[key]

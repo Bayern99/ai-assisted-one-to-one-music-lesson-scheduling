@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import type { ApiClientError } from '../../../api/client'
 import {
   applyReconciliation,
@@ -8,14 +9,89 @@ import {
   investigateReconciliation,
   schedulerResolutionKey,
   schedulerSessionKey,
+  type Operation,
   type PiRuntime,
   type ResolutionAdvice,
 } from '../api'
+import { PHASE_LABELS } from '../operationPhases'
 import styles from '../resolutionPanel.module.css'
 
 type Investigation = NonNullable<ResolutionAdvice['pi_reconciliation']>
 type Simulation = Investigation['simulations'][number]
 type ChangeRow = Simulation['changes'][number]
+type OperationEvent = Operation['events'][number]
+
+const PI_OPERATION_PARAM = 'pi_operation'
+
+const TERMINATION_LABELS: Record<string, string> = {
+  recommendation_ready: 'Investigation complete',
+  no_feasible_package_found: 'No feasible package found',
+  budget_exhausted: 'Exploration limit reached',
+  runtime_timeout: 'Runtime limit reached',
+  crash: 'Pi process exited unexpectedly',
+  interrupted: 'Investigation interrupted',
+  error: 'Investigation failed',
+}
+
+const TOOL_LABELS: Record<string, string> = {
+  inspect_reconciliation: 'inspect occupancy',
+  simulate_reconciliation_package: 'simulate package',
+  submit_reconciliation_brief: 'submit brief',
+}
+
+function progressEventLabel(event: OperationEvent): string {
+  const detail = event.detail ?? {}
+  switch (event.type) {
+    case 'investigation_started': return 'Investigation started'
+    case 'process_spawned': return 'Pi process started'
+    case 'first_agent_activity': return 'Pi first response'
+    case 'agent_alive': return 'Pi agent started'
+    case 'turn_activity': return 'Model working'
+    case 'model_tool_request': return `Model requested ${TOOL_LABELS[String(detail.tool)] ?? String(detail.tool ?? 'tool')}`
+    case 'model_tool_end': return 'Tool execution finished'
+    case 'provider_retry': return `Provider retry ${Number(detail.attempt ?? 0)}/${Number(detail.max_attempts ?? 0)}`
+    case 'provider_retry_end': return `Provider retry ${detail.success ? 'succeeded' : 'failed'}`
+    case 'inspection_started': return "Analyzing the day's schedule"
+    case 'inspection_completed': return 'Occupancy inspected'
+    case 'inspection_rejected': return `Inspection rejected by Python: ${String(detail.reason ?? '')}`
+    case 'simulation_started': return 'Simulating a candidate package'
+    case 'simulation_rejected': return `Package rejected by Python validation: ${String(detail.reason ?? '')}`
+    case 'first_valid_candidate': return 'Found a valid candidate'
+    case 'simulation_completed': return detail.feasible ? 'Candidate package is feasible' : 'Candidate package not feasible'
+    case 'brief_submitted': return 'Brief submitted'
+    case 'investigation_closed': return 'Investigation closed at a bound'
+    case 'investigation_interrupted': return 'Investigation stopped at a runtime bound'
+    case 'agent_settled': return 'Pi finished'
+    default: return event.label || event.type
+  }
+}
+
+function elapsedSeconds(operation: Operation): string {
+  if (!operation.started_at) return ''
+  const end = operation.last_activity_at ?? operation.started_at
+  const ms = Date.parse(end) - Date.parse(operation.started_at)
+  if (!Number.isFinite(ms) || ms < 0) return ''
+  return (ms / 1000).toFixed(1)
+}
+
+function resultNumber(result: Operation['result'], key: string): number | null {
+  const value = result?.[key]
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function operationMetrics(operation: Operation): string {
+  const count = (key: string): number | null => resultNumber(operation.result, key)
+  const plural = (value: number | null, singular: string): string | null =>
+    value === null ? null : `${value} ${singular}${value === 1 ? '' : 's'}`
+  const parts = [
+    count('latency_ms') !== null ? `took ${(count('latency_ms')! / 1000).toFixed(1)}s` : null,
+    plural(count('tool_calls'), 'tool call'),
+    plural(count('simulation_count'), 'candidate package'),
+    count('rejected_candidates') ? `${count('rejected_candidates')} rejected by Python` : null,
+    plural(count('valid_candidates'), 'usable candidate'),
+  ]
+  return parts.filter(Boolean).join(' · ')
+}
 
 const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
@@ -56,18 +132,18 @@ function clock(value: unknown): string {
 function placement(value: ChangeRow['from']): string {
   if (!value) return '—'
   const day = typeof value.day === 'number' ? `${dayNames[value.day] ?? value.day} ` : ''
-  const room = value.room ? String(value.room) : '未排'
+  const room = value.room ? String(value.room) : 'Unplaced'
   return `${day}${clock(value.start)}–${clock(value.end)} · ${room}`
 }
 
 function simulationHeadline(metrics: Record<string, unknown>): string {
   const parts = [
-    `${Number(metrics.resolved_delta ?? 0)} 节新安排`,
-    `${Number(metrics.remaining_unresolved ?? 0)} 节仍未排`,
+    `${Number(metrics.resolved_delta ?? 0)} newly placed`,
+    `${Number(metrics.remaining_unresolved ?? 0)} still unplaced`,
   ]
-  if (Number(metrics.moved_assignments ?? 0)) parts.push(`${Number(metrics.moved_assignments)} 节原有安排移动`)
-  if (Number(metrics.room_switches ?? 0)) parts.push(`${Number(metrics.room_switches)} 次换房`)
-  if (Number(metrics.sacrificed_assignments ?? 0)) parts.push(`${Number(metrics.sacrificed_assignments)} 节被牺牲`)
+  if (Number(metrics.moved_assignments ?? 0)) parts.push(`${Number(metrics.moved_assignments)} moved`)
+  if (Number(metrics.room_switches ?? 0)) parts.push(`${Number(metrics.room_switches)} room switches`)
+  if (Number(metrics.sacrificed_assignments ?? 0)) parts.push(`${Number(metrics.sacrificed_assignments)} sacrificed`)
   return parts.join(' · ')
 }
 
@@ -105,10 +181,10 @@ function groupTeacherMoves(changes: MoveSource[] | undefined): TeacherMove[] {
     return {
       action: withdrawn ? 'withdraw' : row.action === 'place' ? 'place' : 'move',
       end: clock(row.from?.end ?? row.to?.end),
-      fromRoom: withdrawn || row.from?.room ? String(row.from?.room || '未排') : '未排',
+      fromRoom: withdrawn || row.from?.room ? String(row.from?.room || 'Unplaced') : 'Unplaced',
       start: clock(row.from?.start ?? row.to?.start),
       teacher: String(row.teacher || '—').trim() || '—',
-      toRoom: withdrawn ? '未排' : String(row.to?.room || '未排'),
+      toRoom: withdrawn ? 'Unplaced' : String(row.to?.room || 'Unplaced'),
     }
   }).sort((left, right) => {
     if (left.teacher !== right.teacher) return left.teacher.localeCompare(right.teacher)
@@ -159,7 +235,7 @@ function remainingTeacherLines(
   }
   return [...groups.entries()].map(([who, labels]) => ({
     key: who,
-    text: labels.length > 0 && labels.length <= 2 ? remainingSummary(who, labels.join('、')) : `${who} · ${Math.max(labels.length, 1)} 节`,
+    text: labels.length > 0 && labels.length <= 2 ? remainingSummary(who, labels.join(', ')) : `${who} · ${Math.max(labels.length, 1)} lessons`,
   }))
 }
 
@@ -170,10 +246,10 @@ function publicTitle(title: string | undefined, fallback: string): string {
 }
 
 function pendingKindLabel(kind: string | undefined): string {
-  if (kind === 'business_tradeoff') return '业务取舍'
-  if (kind === 'missing_fact') return '缺少事实'
-  if (kind === 'exception_authorization') return '需要例外授权'
-  return '需要你决定'
+  if (kind === 'business_tradeoff') return 'Business trade-off'
+  if (kind === 'missing_fact') return 'Missing fact'
+  if (kind === 'exception_authorization') return 'Exception authorization'
+  return 'Needs your decision'
 }
 
 function pendingList(
@@ -183,7 +259,7 @@ function pendingList(
   const items = pending ?? []
   if (!items.length) return null
   return <div>
-    <small>需要你决定：</small>
+    <small>Decisions needed:</small>
     <ul>{items.map((item, index) => {
       const who = item.teacher_alias ? names[item.teacher_alias] : ''
       return <li key={`pending-${index}`}>{[pendingKindLabel(item.kind), who].filter(Boolean).join(' · ')}</li>
@@ -205,7 +281,8 @@ export function PiReconciliationPanel({ activeDay, disabled, investigation, piRu
   const choice = allowedChoices.has(choiceDraft) ? choiceDraft : defaultChoice
   const thinkingDefault = piRuntime?.thinking_level || 'off'
   const thinking = thinkingLevels.includes(thinkingDraft) ? thinkingDraft : thinkingDefault
-  const [operationId, setOperationId] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [operationId, setOperationId] = useState(() => searchParams.get(PI_OPERATION_PARAM) ?? '')
   const [note, setNote] = useState('')
   const [goal, setGoal] = useState('')
   const [confirmedBySimulation, setConfirmedBySimulation] = useState<Record<string, string[]>>({})
@@ -220,7 +297,8 @@ export function PiReconciliationPanel({ activeDay, disabled, investigation, piRu
       return status === 'queued' || status === 'running' ? 500 : false
     },
   })
-  const operation = operationQuery.data?.data
+  const operationNotFound = (operationQuery.error as ApiClientError | null)?.code === 'OPERATION_NOT_FOUND'
+  const operation = operationNotFound ? undefined : operationQuery.data?.data
   const startMutation = useMutation({
     mutationFn: () => {
       if (!workspaceVersion) throw new Error('Workspace version unavailable')
@@ -232,7 +310,13 @@ export function PiReconciliationPanel({ activeDay, disabled, investigation, piRu
       })
     },
     onSuccess: (response) => {
-      if (response.data) setOperationId(response.data.operation_id)
+      if (!response.data) return
+      setOperationId(response.data.operation_id)
+      setSearchParams((current) => {
+        const next = new URLSearchParams(current)
+        next.set(PI_OPERATION_PARAM, response.data!.operation_id)
+        return next
+      }, { replace: true })
     },
   })
   const rejectMutation = useMutation({
@@ -276,6 +360,17 @@ export function PiReconciliationPanel({ activeDay, disabled, investigation, piRu
     void queryClient.invalidateQueries({ queryKey: schedulerSessionKey })
   }, [operation?.id, operation?.status, queryClient])
 
+  useEffect(() => {
+    // Only a missing operation drops the durable handle; a completed or failed
+    // investigation keeps it so the final timeline stays visible after remounts.
+    if (!operationId || !operationNotFound) return
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current)
+      next.delete(PI_OPERATION_PARAM)
+      return next
+    }, { replace: true })
+  }, [operationId, operationNotFound, setSearchParams])
+
   const simulations = investigation?.simulations ?? []
   const brief = investigation?.brief
   const primary = simulations.find((item) => item.simulation_id === brief?.primary_simulation_id)
@@ -296,9 +391,12 @@ export function PiReconciliationPanel({ activeDay, disabled, investigation, piRu
     || applyMutation.isPending
     || operation?.status === 'queued'
     || operation?.status === 'running'
-  const error = (startMutation.error ?? rejectMutation.error ?? applyMutation.error ?? operationQuery.error) as ApiClientError | null
+  const error = (startMutation.error ?? rejectMutation.error ?? applyMutation.error ?? (operationNotFound ? null : operationQuery.error)) as ApiClientError | null
   const status = investigation?.status
   const interrupted = brief?.termination === 'budget_exhausted'
+  const interruptedHint = status === 'timeout'
+    ? 'The investigation was cut off by the runtime limit. Verified packages remain applicable; the uncovered part needs a new investigation.'
+    : 'The investigation was cut off by the internal limit before full coverage. Verified packages remain applicable; the uncovered part needs a new investigation.'
   const applied = status === 'applied'
   const applyResult = investigation?.apply_result ?? null
   const stale = Boolean(investigation?.stale) && !applied
@@ -310,22 +408,22 @@ export function PiReconciliationPanel({ activeDay, disabled, investigation, piRu
   function changeSide(simulation: Simulation | undefined) {
     if (!simulation?.changes?.length) return null
     return <>
-      {teacherMoveList(simulation.changes, '教师调整')}
+      {teacherMoveList(simulation.changes, 'Teacher adjustments')}
       <details className={styles.piHistory}>
-        <summary>逐课明细</summary>
+        <summary>Per-lesson details</summary>
         <table className={styles.changeTable}>
-          <caption>预期变更（{simulation.changes.length} 节课）</caption>
-          <thead><tr><th>教师</th><th>课程</th><th>原安排</th><th>调整后</th><th>说明</th></tr></thead>
+          <caption>Expected changes ({simulation.changes.length} lessons)</caption>
+          <thead><tr><th>Teacher</th><th>Lesson</th><th>From</th><th>To</th><th>Notes</th></tr></thead>
           <tbody>
             {simulation.changes.map((row) => <tr key={`${row.group_alias}-${row.subject_alias}`}>
               <td>{row.teacher || '—'}</td>
-              <td>{row.label || row.subject_alias}{row.group_size > 1 ? <small>（教师日区块 {row.group_size} 节）</small> : null}</td>
+              <td>{row.label || row.subject_alias}{row.group_size > 1 ? <small> (teacher-day block of {row.group_size} lessons)</small> : null}</td>
               <td>{placement(row.from)}</td>
-              <td>{row.action === 'withdraw' ? '回到未排（牺牲）' : placement(row.to)}</td>
+              <td>{row.action === 'withdraw' ? 'Back to unplaced (sacrificed)' : placement(row.to)}</td>
               <td>{[
-                row.action === 'place' ? '安排' : row.action === 'withdraw' ? '撤下' : '移动',
-                row.room_changed && row.action !== 'withdraw' ? '换房' : '',
-                row.time_changed ? '改时间（例外）' : '',
+                row.action === 'place' ? 'Place' : row.action === 'withdraw' ? 'Withdraw' : 'Move',
+                row.room_changed && row.action !== 'withdraw' ? 'room change' : '',
+                row.time_changed ? 'time change (exception)' : '',
               ].filter(Boolean).join(' · ')}</td>
             </tr>)}
           </tbody>
@@ -341,19 +439,20 @@ export function PiReconciliationPanel({ activeDay, disabled, investigation, piRu
     const needsException = (brief.pending_decisions ?? []).some((item) => item.kind === 'exception_authorization')
     return <article className={styles.piProposal} data-testid="reconciliation-stop-result">
       <header>
-        <h4>{publicTitle(brief.title, stoppedByBudget ? '调查达到上限' : needsException ? '合法房间用尽，需要你决定例外' : '未找到可行整包方案')}</h4>
-        <span>{brief.status === 'rejected' ? '已记录' : stoppedByBudget ? '调查中断' : needsException ? '需要例外授权' : '无可行方案'}</span>
+        <h4>{publicTitle(brief.title, stoppedByBudget ? 'Investigation limit reached' : needsException ? 'No legal rooms left; an exception decision is needed' : 'No feasible complete package found')}</h4>
+        <span>{brief.status === 'rejected' ? 'Recorded' : stoppedByBudget ? 'Interrupted' : needsException ? 'Exception needed' : 'No feasible package'}</span>
       </header>
       {pendingList(brief.pending_decisions, teacherNames)}
+      {brief.limitations?.length ? <small>Limitations: {brief.limitations.join('; ')}</small> : null}
       {remaining.length ? <div>
-        <small>仍未解决：</small>
+        <small>Still unresolved:</small>
         <ul>{remainingTeacherLines(remaining, teacherNames).map((item) => (
           <li key={`stop-${item.key}`}>{item.text}</li>
         ))}</ul>
       </div> : null}
       {brief.status === 'proposed' ? <div className={styles.planActions}>
-        <textarea aria-label="Reconciliation decision note" maxLength={500} onChange={(event) => setNote(event.target.value)} placeholder="决定备注（可选）" value={note} />
-        <button disabled={active} onClick={() => rejectMutation.mutate()} type="button">记录并关闭</button>
+        <textarea aria-label="Reconciliation decision note" maxLength={500} onChange={(event) => setNote(event.target.value)} placeholder="Decision note (optional)" value={note} />
+        <button disabled={active} onClick={() => rejectMutation.mutate()} type="button">Record and close</button>
       </div> : null}
     </article>
   }
@@ -361,8 +460,8 @@ export function PiReconciliationPanel({ activeDay, disabled, investigation, piRu
   function recommendation() {
     if (!recommended) return null
     if (brief?.status === 'rejected') return <article className={styles.piProposal}>
-      <header><h4>{brief.title}</h4><span>已标记不采用</span></header>
-      <small>这条调查结论已记录为不采用{brief.decision_note ? `：${brief.decision_note}` : ''}。课表没有改变；需要时调整边界后重新调查。</small>
+      <header><h4>{brief.title}</h4><span>Marked as not pursued</span></header>
+      <small>This conclusion was recorded as not pursued{brief.decision_note ? `: ${brief.decision_note}` : ''}. The schedule is unchanged; adjust the boundaries and investigate again when needed.</small>
     </article>
     const pending = brief?.pending_decisions ?? []
     const remaining = brief?.remaining_issues ?? []
@@ -370,35 +469,36 @@ export function PiReconciliationPanel({ activeDay, disabled, investigation, piRu
     return <article className={styles.piProposal} data-testid="reconciliation-recommendation">
       <header>
         <h4>{publicTitle(brief?.title, simulationHeadline(recommended.metrics ?? {}))}</h4>
-        <span>{useFallback ? '备选方案' : '主推荐'}</span>
+        <span>{useFallback ? 'Alternative' : 'Primary'}</span>
       </header>
-      <small>{groupTeacherMoves(recommended.changes).length} 项调整</small>
-      {recommended.same_day_time_change ? <p className={styles.resolutionError}>这个方案包含改时间的例外条款，需要逐位教师确认后才可以应用。</p> : null}
+      <small>{groupTeacherMoves(recommended.changes).length} adjustments</small>
+      {recommended.same_day_time_change ? <p className={styles.resolutionError}>This package contains a time-change exception; every listed teacher must confirm before it can be applied.</p> : null}
       {changeSide(recommended)}
-      {splits.length ? <small>代价：{splits.map((item) => `${teacherNames[item.teacher_alias] ?? item.teacher_alias} 当天将使用 ${(item.rooms ?? []).join(' / ')}`).join('；')}</small> : null}
+      {splits.length ? <small>Cost: {splits.map((item) => `${teacherNames[item.teacher_alias] ?? item.teacher_alias} will use ${(item.rooms ?? []).join(' / ')}`).join('; ')}</small> : null}
       {pendingList(pending, teacherNames)}
+      {brief?.limitations?.length ? <small>Limitations: {brief.limitations.join('; ')}</small> : null}
       {remaining.length ? <div>
-        <small>仍未排：</small>
+        <small>Still unplaced:</small>
         <ul className={styles.remainingSummaries}>{remainingTeacherLines(remaining, teacherNames).map((item) => (
           <li key={`remaining-${item.key}`}>{item.text}</li>
         ))}</ul>
       </div> : null}
       {requiredSacrifices.length ? <div>
-        <small>这个方案会让下列已排区块回到未排，需要你单独授权：</small>
+        <small>This package returns the following scheduled lessons to unplaced; authorize each separately:</small>
         {teacherMoveList(recommended.sacrifices.map((item) => ({
           action: 'withdraw',
           teacher: teacherNames[item.teacher_alias] ?? item.teacher_alias,
           from: { room: item.room, start: item.start, end: item.end },
-        })), '拟撤回')}
+        })), 'To withdraw')}
       </div> : null}
       {requiredAliases.length ? <div>
-        <small>应用前请确认这些教师已经同意具体变化：</small>
+        <small>Confirm each teacher has agreed to the exact change before applying:</small>
         {requiredAliases.map((alias) => <label key={alias}>
           <input
             checked={confirmed.includes(alias)}
             onChange={(event) => toggle(confirmed, setConfirmed, alias, event.target.checked)}
             type="checkbox"
-          /> {teacherNames[alias] ?? alias} 已同意
+          /> {teacherNames[alias] ?? alias} has agreed
         </label>)}
       </div> : null}
       <div className={styles.planActions}>
@@ -411,14 +511,14 @@ export function PiReconciliationPanel({ activeDay, disabled, investigation, piRu
               checked={authorizedSacrifices.includes(alias)}
               onChange={(event) => toggle(authorizedSacrifices, setAuthorizedSacrifices, alias, event.target.checked)}
               type="checkbox"
-            /> 授权牺牲 {who}{when ? ` ${when}` : ''}
+            /> Authorize sacrifice {who}{when ? ` ${when}` : ''}
           </label>
         })}
         <textarea
           aria-label="Reconciliation decision note"
           maxLength={500}
           onChange={(event) => setNote(event.target.value)}
-          placeholder="决定备注（可选，会记入本次任务记录）"
+          placeholder="Decision note (optional, recorded in this task record)"
           value={note}
         />
         <button
@@ -427,10 +527,10 @@ export function PiReconciliationPanel({ activeDay, disabled, investigation, piRu
             || requiredSacrifices.some((alias) => !authorizedSacrifices.includes(alias))}
           onClick={() => applyMutation.mutate()}
           type="button"
-        >应用这个建议<span aria-hidden="true" className={styles.ctaIcon}>↗</span></button>
-        <button disabled={active || applied} onClick={() => rejectMutation.mutate()} type="button">不采用</button>
+        >Apply this recommendation<span aria-hidden="true" className={styles.ctaIcon}>↗</span></button>
+        <button disabled={active || applied} onClick={() => rejectMutation.mutate()} type="button">Reject</button>
       </div>
-      {interrupted ? <small>调查被内部上限中断，未完成完整覆盖。已验证的方案仍可应用；未覆盖的部分需要另行调查。</small> : null}
+      {interrupted ? <small>{interruptedHint}</small> : null}
     </article>
   }
 
@@ -442,7 +542,7 @@ export function PiReconciliationPanel({ activeDay, disabled, investigation, piRu
   return (
     <section className={styles.piIntervention} aria-label="Pi reconciliation investigation">
       <div className={styles.piWorkbenchHeading}>
-        <div className={styles.piHeadingTitle}><h2>Pi reconciliation investigator</h2><small>整日委托 · 时间固定 · 保全优先 · 只做沙盒与建议</small></div>
+        <div className={styles.piHeadingTitle}><h2>Pi reconciliation investigator</h2><small>Whole-day delegation · fixed times · preserve-first · sandbox and advice only</small></div>
         <div className={styles.piRuntimePickers}>
           <label>Pi model
             <select
@@ -468,61 +568,88 @@ export function PiReconciliationPanel({ activeDay, disabled, investigation, piRu
           </label>
         </div>
       </div>
-      <p className={styles.piPrivacy}>一次调查当天的未排与连带调整。Python 校验整包；Pi 不能改课表。不必先勾教师名单。</p>
-      {stale ? <p className={styles.resolutionError}>课表已经变化，这份建议已过期；请重新调查后再应用。</p> : null}
-      {operation?.status === 'failed' ? <p className={styles.resolutionError} role="alert">{operation.error ?? 'Pi 没有提交调查结论。'}</p> : null}
-      {applied && remaining.length ? <ul aria-label="仍未排" className={styles.remainingSummaries}>
+      <p className={styles.piPrivacy}>One investigation covers the day's unplaced lessons and their linked adjustments. Python validates every package; Pi cannot edit the schedule. No teacher checklist needed first.</p>
+      {stale ? <p className={styles.resolutionError}>The schedule changed; this recommendation is stale. Investigate again before applying.</p> : null}
+      {operation?.status === 'failed' ? <p className={styles.resolutionError} role="alert">{operation.error ?? 'Pi did not submit an investigation brief.'}</p> : null}
+      {operation ? (
+        <div className={styles.piProgress} data-testid="pi-progress">
+          <small>
+            {operation.phase === 'completed'
+              ? 'Investigation complete'
+              : operation.phase === 'failed'
+                ? 'Investigation failed'
+                : PHASE_LABELS[operation.phase] ?? operation.phase}
+            {elapsedSeconds(operation) ? ` · elapsed ${elapsedSeconds(operation)}s` : ''}
+            {operation.status === 'completed'
+              && operation.result?.termination
+              && operation.result.termination !== 'recommendation_ready'
+              ? ` · ${TERMINATION_LABELS[String(operation.result.termination)] ?? String(operation.result.termination)}`
+              : ''}
+          </small>
+          {operation.events.length ? (
+            <ol className={styles.piProgressEvents}>
+              {operation.events.slice(-6).map((event) => (
+                <li key={event.seq}>{progressEventLabel(event)}</li>
+              ))}
+            </ol>
+          ) : null}
+          {operation.status === 'completed' && operationMetrics(operation) ? (
+            <small className="meta">{operationMetrics(operation)}</small>
+          ) : null}
+        </div>
+      ) : null}
+      {applied && remaining.length ? <ul aria-label="Still unplaced" className={styles.remainingSummaries}>
         {remainingTeacherLines(remaining, teacherNames).map((item) => (
           <li key={`left-${item.key}`}>{item.text}</li>
         ))}
       </ul> : null}
       <div className={styles.piTalk}>
-        {lastInstruction ? <small>你上次说了：{lastInstruction}</small> : null}
+        {lastInstruction ? <small>Your last instruction: {lastInstruction}</small> : null}
         <input
-          aria-label="对 Pi 说"
+          aria-label="Message to Pi"
           disabled={active}
           maxLength={600}
           onChange={(event) => setGoal(event.target.value)}
-          placeholder={followUp ? '接着说：不要动谁、可以改时、剩下的未排…' : '本次要办成什么（可留空）'}
+          placeholder={followUp ? 'Continue: who not to touch, time-change exceptions, the remaining unplaced…' : 'What should this run achieve? (optional)'}
           type="text"
           value={goal}
         />
         <button disabled={active || !workspaceVersion || !parseChoice(choice).model} onClick={() => startMutation.mutate()} type="button">
-          {active ? 'Pi 正在调查…' : followUp
-            ? <>按这句话再查<span aria-hidden="true" className={styles.ctaIcon}>↗</span></>
-            : <>{`调查 ${dayNames[activeDay] ?? ''} 的连带调整`}<span aria-hidden="true" className={styles.ctaIcon}>↗</span></>}
+          {active ? 'Pi is investigating…' : followUp
+            ? <>Investigate again with this<span aria-hidden="true" className={styles.ctaIcon}>↗</span></>
+            : <>{`Investigate ${dayNames[activeDay] ?? ''}'s linked adjustments`}<span aria-hidden="true" className={styles.ctaIcon}>↗</span></>}
         </button>
       </div>
       {applied && applyResult ? <article className={styles.piProposal} data-testid="reconciliation-applied">
         <header>
-          <h4>已应用</h4>
-          <span>{appliedMoves.length} 项调整</span>
+          <h4>Applied</h4>
+          <span>{appliedMoves.length} adjustments</span>
         </header>
-        {teacherMoveList(applyResult.changes, '已完成调整')}
+        {teacherMoveList(applyResult.changes, 'Applied adjustments')}
         {(applyResult.changes ?? []).length ? <details className={styles.piHistory}>
-          <summary>逐课明细</summary>
+          <summary>Per-lesson details</summary>
           <table className={styles.changeTable}>
-            <caption>实际完成的变更</caption>
-            <thead><tr><th>教师</th><th>课程</th><th>原安排</th><th>调整后</th></tr></thead>
+            <caption>Changes actually applied</caption>
+            <thead><tr><th>Teacher</th><th>Lesson</th><th>From</th><th>To</th></tr></thead>
             <tbody>
               {(applyResult.changes ?? []).map((row) => <tr key={`applied-${row.group_alias}-${row.subject_alias}`}>
                 <td>{row.teacher || '—'}</td>
                 <td>{row.label || row.subject_alias}</td>
                 <td>{placement(row.from)}</td>
-                <td>{row.action === 'withdraw' ? '回到未排（牺牲）' : placement(row.to)}</td>
+                <td>{row.action === 'withdraw' ? 'Back to unplaced (sacrificed)' : placement(row.to)}</td>
               </tr>)}
             </tbody>
           </table>
         </details> : null}
-        <small>需要修改时可以整体撤销这次应用（Undo），不会自动 Stage 或 Finalize。</small>
+        <small>You can undo this application as a whole if needed; it does not auto-Stage or Finalize.</small>
       </article> : null}
       {!applied && recommended ? recommendation() : null}
       {!applied && !recommended ? stopResult() : null}
       {!applied && fallback ? <details className={styles.planVariants}>
-        <summary>另有备选：{Number(fallback.metrics?.resolved_delta ?? 0)} 节新安排 · {Number(fallback.metrics?.room_switches ?? 0)} 次换房（与主推荐的差别在取舍）</summary>
-        <small>{fallback.status === 'conditional' ? '备选需要额外确认或授权。' : '备选可直接应用。'}</small>
-        <button disabled={active} onClick={() => { setFallbackForInvestigation(investigation?.investigation_id ?? ''); setConfirmed([]); setAuthorizedSacrifices([]) }} type="button">改用备选</button>
-        <button disabled={active || !useFallback} onClick={() => { setFallbackForInvestigation(''); setConfirmed([]); setAuthorizedSacrifices([]) }} type="button">回到主推荐</button>
+        <summary>Alternative: {Number(fallback.metrics?.resolved_delta ?? 0)} newly placed · {Number(fallback.metrics?.room_switches ?? 0)} room switches (different trade-offs from the primary)</summary>
+        <small>{fallback.status === 'conditional' ? 'The alternative needs extra confirmations or authorization.' : 'The alternative can be applied directly.'}</small>
+        <button disabled={active} onClick={() => { setFallbackForInvestigation(investigation?.investigation_id ?? ''); setConfirmed([]); setAuthorizedSacrifices([]) }} type="button">Use alternative</button>
+        <button disabled={active || !useFallback} onClick={() => { setFallbackForInvestigation(''); setConfirmed([]); setAuthorizedSacrifices([]) }} type="button">Back to primary</button>
       </details> : null}
       {error ? <p className={styles.resolutionError} role="alert">{error.message}</p> : null}
     </section>

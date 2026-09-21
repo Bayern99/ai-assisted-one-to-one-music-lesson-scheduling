@@ -4,161 +4,6 @@
  */
 
 export interface paths {
-    "/api/assessment/continuous/preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Preview Continuous Assessment */
-        post: operations["preview_continuous_assessment_api_assessment_continuous_preview_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/assessment/exports/build": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Build Assessment Exports */
-        post: operations["build_assessment_exports_api_assessment_exports_build_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/assessment/exports/{artifact_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Download Assessment Export */
-        get: operations["download_assessment_export_api_assessment_exports__artifact_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/assessment/import/apply": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Apply Assessment Import */
-        post: operations["apply_assessment_import_api_assessment_import_apply_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/assessment/jury/preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Preview Jury Assessment */
-        post: operations["preview_jury_assessment_api_assessment_jury_preview_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/assessment/overview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Assessment Overview */
-        get: operations["get_assessment_overview_api_assessment_overview_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/assessment/score-templates": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Score Templates */
-        get: operations["get_score_templates_api_assessment_score_templates_get"];
-        put?: never;
-        /** Create Score Template */
-        post: operations["create_score_template_api_assessment_score_templates_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/assessment/score-templates/{template_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Delete Score Template */
-        delete: operations["delete_score_template_api_assessment_score_templates__template_id__delete"];
-        options?: never;
-        head?: never;
-        /** Patch Score Template */
-        patch: operations["patch_score_template_api_assessment_score_templates__template_id__patch"];
-        trace?: never;
-    };
-    "/api/assessment/score-templates/{template_id}/exports/build": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Build Score Template Exports */
-        post: operations["build_score_template_exports_api_assessment_score_templates__template_id__exports_build_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/auth/exchange": {
         parameters: {
             query?: never;
@@ -255,110 +100,6 @@ export interface paths {
         put?: never;
         /** Use Pi Reconciliation Tool */
         post: operations["use_pi_reconciliation_tool_api_internal_pi_intervention_reconciliation_tool_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/jury/exports/build": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Build Jury Exports */
-        post: operations["build_jury_exports_api_jury_exports_build_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/jury/exports/{artifact_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Download Jury Export */
-        get: operations["download_jury_export_api_jury_exports__artifact_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/jury/schedule/preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Preview Jury Schedule */
-        post: operations["preview_jury_schedule_api_jury_schedule_preview_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/jury/sessions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Jury Sessions */
-        get: operations["get_jury_sessions_api_jury_sessions_get"];
-        put?: never;
-        /** Create Jury Session */
-        post: operations["create_jury_session_api_jury_sessions_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** Patch Jury Session */
-        patch: operations["patch_jury_session_api_jury_sessions_patch"];
-        trace?: never;
-    };
-    "/api/jury/sessions/{session_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Delete Jury Session */
-        delete: operations["delete_jury_session_api_jury_sessions__session_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/jury/sessions/{session_id}/reorder": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Reorder Jury Students */
-        post: operations["reorder_jury_students_api_jury_sessions__session_id__reorder_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1104,72 +845,9 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** ApiEnvelope[AssessmentExportBuildResult] */
-        ApiEnvelope_AssessmentExportBuildResult_: {
-            data?: components["schemas"]["AssessmentExportBuildResult"] | null;
-            error?: components["schemas"]["ApiErrorPayload"] | null;
-            /** Warnings */
-            warnings?: string[];
-            /** Workspace Version */
-            workspace_version?: string | null;
-        };
-        /** ApiEnvelope[AssessmentImportPreview] */
-        ApiEnvelope_AssessmentImportPreview_: {
-            data?: components["schemas"]["AssessmentImportPreview"] | null;
-            error?: components["schemas"]["ApiErrorPayload"] | null;
-            /** Warnings */
-            warnings?: string[];
-            /** Workspace Version */
-            workspace_version?: string | null;
-        };
-        /** ApiEnvelope[AssessmentImportResult] */
-        ApiEnvelope_AssessmentImportResult_: {
-            data?: components["schemas"]["AssessmentImportResult"] | null;
-            error?: components["schemas"]["ApiErrorPayload"] | null;
-            /** Warnings */
-            warnings?: string[];
-            /** Workspace Version */
-            workspace_version?: string | null;
-        };
         /** ApiEnvelope[DashboardData] */
         ApiEnvelope_DashboardData_: {
             data?: components["schemas"]["DashboardData"] | null;
-            error?: components["schemas"]["ApiErrorPayload"] | null;
-            /** Warnings */
-            warnings?: string[];
-            /** Workspace Version */
-            workspace_version?: string | null;
-        };
-        /** ApiEnvelope[JuryExportBuildResult] */
-        ApiEnvelope_JuryExportBuildResult_: {
-            data?: components["schemas"]["JuryExportBuildResult"] | null;
-            error?: components["schemas"]["ApiErrorPayload"] | null;
-            /** Warnings */
-            warnings?: string[];
-            /** Workspace Version */
-            workspace_version?: string | null;
-        };
-        /** ApiEnvelope[JuryScheduleView] */
-        ApiEnvelope_JuryScheduleView_: {
-            data?: components["schemas"]["JuryScheduleView"] | null;
-            error?: components["schemas"]["ApiErrorPayload"] | null;
-            /** Warnings */
-            warnings?: string[];
-            /** Workspace Version */
-            workspace_version?: string | null;
-        };
-        /** ApiEnvelope[JurySessionDeleteResult] */
-        ApiEnvelope_JurySessionDeleteResult_: {
-            data?: components["schemas"]["JurySessionDeleteResult"] | null;
-            error?: components["schemas"]["ApiErrorPayload"] | null;
-            /** Warnings */
-            warnings?: string[];
-            /** Workspace Version */
-            workspace_version?: string | null;
-        };
-        /** ApiEnvelope[JurySessionView] */
-        ApiEnvelope_JurySessionView_: {
-            data?: components["schemas"]["JurySessionView"] | null;
             error?: components["schemas"]["ApiErrorPayload"] | null;
             /** Warnings */
             warnings?: string[];
@@ -1311,24 +989,6 @@ export interface components {
             /** Workspace Version */
             workspace_version?: string | null;
         };
-        /** ApiEnvelope[ScoreTemplateDeleteResult] */
-        ApiEnvelope_ScoreTemplateDeleteResult_: {
-            data?: components["schemas"]["ScoreTemplateDeleteResult"] | null;
-            error?: components["schemas"]["ApiErrorPayload"] | null;
-            /** Warnings */
-            warnings?: string[];
-            /** Workspace Version */
-            workspace_version?: string | null;
-        };
-        /** ApiEnvelope[ScoreTemplateView] */
-        ApiEnvelope_ScoreTemplateView_: {
-            data?: components["schemas"]["ScoreTemplateView"] | null;
-            error?: components["schemas"]["ApiErrorPayload"] | null;
-            /** Warnings */
-            warnings?: string[];
-            /** Workspace Version */
-            workspace_version?: string | null;
-        };
         /** ApiEnvelope[SemesterConfigView] */
         ApiEnvelope_SemesterConfigView_: {
             data?: components["schemas"]["SemesterConfigView"] | null;
@@ -1401,16 +1061,6 @@ export interface components {
             /** Workspace Version */
             workspace_version?: string | null;
         };
-        /** ApiEnvelope[Union[AssessmentImportInspection, AssessmentImportPreview]] */
-        ApiEnvelope_Union_AssessmentImportInspection__AssessmentImportPreview__: {
-            /** Data */
-            data?: components["schemas"]["AssessmentImportInspection"] | components["schemas"]["AssessmentImportPreview"] | null;
-            error?: components["schemas"]["ApiErrorPayload"] | null;
-            /** Warnings */
-            warnings?: string[];
-            /** Workspace Version */
-            workspace_version?: string | null;
-        };
         /** ApiEnvelope[Union[SchedulerImportPreview, SchedulerWorkbookImportPreview]] */
         ApiEnvelope_Union_SchedulerImportPreview__SchedulerWorkbookImportPreview__: {
             /** Data */
@@ -1464,36 +1114,6 @@ export interface components {
             /** Workspace Version */
             workspace_version?: string | null;
         };
-        /** ApiEnvelope[list[GradeOverviewRecord]] */
-        ApiEnvelope_list_GradeOverviewRecord__: {
-            /** Data */
-            data?: components["schemas"]["GradeOverviewRecord"][] | null;
-            error?: components["schemas"]["ApiErrorPayload"] | null;
-            /** Warnings */
-            warnings?: string[];
-            /** Workspace Version */
-            workspace_version?: string | null;
-        };
-        /** ApiEnvelope[list[JurySessionView]] */
-        ApiEnvelope_list_JurySessionView__: {
-            /** Data */
-            data?: components["schemas"]["JurySessionView"][] | null;
-            error?: components["schemas"]["ApiErrorPayload"] | null;
-            /** Warnings */
-            warnings?: string[];
-            /** Workspace Version */
-            workspace_version?: string | null;
-        };
-        /** ApiEnvelope[list[ScoreTemplateView]] */
-        ApiEnvelope_list_ScoreTemplateView__: {
-            /** Data */
-            data?: components["schemas"]["ScoreTemplateView"][] | null;
-            error?: components["schemas"]["ApiErrorPayload"] | null;
-            /** Warnings */
-            warnings?: string[];
-            /** Workspace Version */
-            workspace_version?: string | null;
-        };
         /** ApiEnvelope[list[StudentRecord]] */
         ApiEnvelope_list_StudentRecord__: {
             /** Data */
@@ -1517,87 +1137,6 @@ export interface components {
             /** Operation Id */
             operation_id?: string | null;
         };
-        /** AssessmentExportArtifact */
-        AssessmentExportArtifact: {
-            /** Artifact Id */
-            artifact_id: string;
-            /** Filename */
-            filename: string;
-            /** Mime Type */
-            mime_type: string;
-        };
-        /** AssessmentExportBuildResult */
-        AssessmentExportBuildResult: {
-            /** Artifacts */
-            artifacts: components["schemas"]["AssessmentExportArtifact"][];
-        };
-        /** AssessmentImportApplyRequest */
-        AssessmentImportApplyRequest: {
-            /** Expected Version */
-            expected_version: string;
-            /** Preview Id */
-            preview_id: string;
-        };
-        /** AssessmentImportInspection */
-        AssessmentImportInspection: {
-            /** Columns */
-            columns: string[];
-            /** File Name */
-            file_name: string;
-            /**
-             * Kind
-             * @default continuous
-             * @constant
-             */
-            kind: "continuous";
-            /** Resolved Mapping */
-            resolved_mapping: {
-                [key: string]: string | null;
-            };
-            /** Row Count */
-            row_count: number;
-        };
-        /** AssessmentImportPreview */
-        AssessmentImportPreview: {
-            /** Columns */
-            columns: string[];
-            /** File Name */
-            file_name: string;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "continuous" | "jury";
-            /** Preview Id */
-            preview_id: string;
-            /** Resolved Mapping */
-            resolved_mapping?: {
-                [key: string]: string | null;
-            };
-            /** Row Count */
-            row_count: number;
-            /** Unmatched */
-            unmatched?: components["schemas"]["AssessmentPreviewIssue"][];
-        };
-        /** AssessmentImportResult */
-        AssessmentImportResult: {
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "continuous" | "jury";
-            /** Overview */
-            overview: components["schemas"]["GradeOverviewRecord"][];
-            /** Records Written */
-            records_written: number;
-        };
-        /** AssessmentPreviewIssue */
-        AssessmentPreviewIssue: {
-            /** Issue */
-            issue: string;
-            /** Student Id */
-            student_id: string;
-        };
         /**
          * Assignment
          * @description Persisted calendar events retain their legacy scheduling fields.
@@ -1611,31 +1150,6 @@ export interface components {
             proposal_start?: string | null;
         } & {
             [key: string]: unknown;
-        };
-        /** Body_preview_continuous_assessment_api_assessment_continuous_preview_post */
-        Body_preview_continuous_assessment_api_assessment_continuous_preview_post: {
-            /**
-             * File
-             * Format: binary
-             */
-            file: string;
-            /**
-             * Inspect Only
-             * @default false
-             */
-            inspect_only: boolean;
-            /** Mapping */
-            mapping?: string | null;
-        };
-        /** Body_preview_jury_assessment_api_assessment_jury_preview_post */
-        Body_preview_jury_assessment_api_assessment_jury_preview_post: {
-            /**
-             * File
-             * Format: binary
-             */
-            file: string;
-            /** Template Id */
-            template_id?: string | null;
         };
         /** Body_preview_scheduler_import_api_scheduler_import_preview_post */
         Body_preview_scheduler_import_api_scheduler_import_preview_post: {
@@ -1738,27 +1252,6 @@ export interface components {
              */
             validation_state: ("editing" | "staged" | "finalized") | null;
         };
-        /** GradeOverviewRecord */
-        GradeOverviewRecord: {
-            /** Anomalies */
-            anomalies?: string[];
-            /** Course Code */
-            course_code: string;
-            /** Jury */
-            jury: number;
-            /** Name */
-            name: string;
-            /** Report */
-            report: number;
-            /** Student Id */
-            student_id: string;
-            /** Studio */
-            studio: number;
-            /** Total */
-            total: number;
-            /** Weekly Prep */
-            weekly_prep: number;
-        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1835,157 +1328,6 @@ export interface components {
             label: string;
             /** Reason Code */
             reason_code: string;
-        };
-        /** JuryExportArtifact */
-        JuryExportArtifact: {
-            /** Artifact Id */
-            artifact_id: string;
-            /** Filename */
-            filename: string;
-            /** Mime Type */
-            mime_type: string;
-        };
-        /** JuryExportBuildResult */
-        JuryExportBuildResult: {
-            /** Artifacts */
-            artifacts: components["schemas"]["JuryExportArtifact"][];
-        };
-        /** JuryScheduleItem */
-        JuryScheduleItem: {
-            /** End */
-            end: string;
-            /** Start */
-            start: string;
-            /**
-             * Type
-             * @enum {string}
-             */
-            type: "exam" | "break";
-        } & {
-            [key: string]: unknown;
-        };
-        /** JuryScheduleRequest */
-        JuryScheduleRequest: {
-            /**
-             * Average Duration Minutes
-             * @default 10
-             */
-            average_duration_minutes: number;
-            /**
-             * Break After Students
-             * @default 5
-             */
-            break_after_students: number;
-            /**
-             * Break Duration Minutes
-             * @default 10
-             */
-            break_duration_minutes: number;
-            /** Session Id */
-            session_id: string;
-            /** Start Time */
-            start_time: string;
-        };
-        /** JuryScheduleView */
-        JuryScheduleView: {
-            /** Items */
-            items: components["schemas"]["JuryScheduleItem"][];
-            /** Session Id */
-            session_id: string;
-        };
-        /** JurySessionCreateRequest */
-        JurySessionCreateRequest: {
-            /** Cohort Filter */
-            cohort_filter?: string[];
-            /** Date */
-            date: string;
-            /** Expected Version */
-            expected_version: string;
-            /** Instrument Filter */
-            instrument_filter?: string[];
-            /**
-             * Jury Captain
-             * @default
-             */
-            jury_captain: string;
-            /** Jury Panel */
-            jury_panel?: string[];
-            /** Name */
-            name: string;
-            /** Room Id */
-            room_id: string;
-            /**
-             * Time Slot
-             * @default Morning
-             */
-            time_slot: string;
-            /** Time Start */
-            time_start: string;
-        };
-        /** JurySessionDeleteRequest */
-        JurySessionDeleteRequest: {
-            /** Expected Version */
-            expected_version: string;
-        };
-        /** JurySessionDeleteResult */
-        JurySessionDeleteResult: {
-            /** Deleted Session Id */
-            deleted_session_id: string;
-        };
-        /** JurySessionUpdateRequest */
-        JurySessionUpdateRequest: {
-            /** Date */
-            date?: string;
-            /** Expected Version */
-            expected_version: string;
-            /** Jury Captain */
-            jury_captain?: string;
-            /** Jury Panel */
-            jury_panel?: string[];
-            /** Room Id */
-            room_id?: string;
-            /** Session Id */
-            session_id: string;
-            /** Time Slot */
-            time_slot?: string;
-            /** Time Start */
-            time_start?: string;
-        };
-        /** JurySessionView */
-        JurySessionView: {
-            /** Captain Suggestion */
-            captain_suggestion?: string | null;
-            /** Cohort Filter */
-            cohort_filter: string[];
-            /** Date */
-            date: string;
-            /** Id */
-            id: string;
-            /** Instrument Filter */
-            instrument_filter: string[];
-            /** Jury Captain */
-            jury_captain: string;
-            /** Jury Panel */
-            jury_panel: string[];
-            /** Name */
-            name: string;
-            /** Room Assistant */
-            room_assistant: string;
-            /** Room Id */
-            room_id: string;
-            /** Students */
-            students: string[];
-            /** Time Slot */
-            time_slot: string;
-            /** Time Start */
-            time_start: string;
-        };
-        /** JuryStudentReorderRequest */
-        JuryStudentReorderRequest: {
-            /** Expected Version */
-            expected_version: string;
-            /** Student Ids */
-            student_ids: string[];
         };
         /** LectureConflict */
         LectureConflict: {
@@ -2071,10 +1413,17 @@ export interface components {
         Operation: {
             /** Error */
             error?: string | null;
+            /**
+             * Events
+             * @default []
+             */
+            events: components["schemas"]["OperationEvent"][];
             /** Id */
             id: string;
             /** Kind */
             kind: string;
+            /** Last Activity At */
+            last_activity_at?: string | null;
             /**
              * Phase
              * @default queued
@@ -2084,11 +1433,32 @@ export interface components {
             result?: {
                 [key: string]: unknown;
             } | null;
+            /** Started At */
+            started_at?: string | null;
             /**
              * Status
              * @default queued
              */
             status: string;
+        };
+        /** OperationEvent */
+        OperationEvent: {
+            /** At */
+            at: string;
+            /** Detail */
+            detail: {
+                [key: string]: unknown;
+            };
+            /** Elapsed Ms */
+            elapsed_ms: number;
+            /** Label */
+            label: string;
+            /** Seq */
+            seq: number;
+            /** Source */
+            source: string;
+            /** Type */
+            type: string;
         };
         /** OptimizerLearningRun */
         OptimizerLearningRun: {
@@ -2379,7 +1749,7 @@ export interface components {
             authorized_sacrifice_aliases?: string[];
             /** Confirmed Confirmation Ids */
             confirmed_confirmation_ids?: string[];
-            /** Confirmed Instructor 0008liases */
+            /** Confirmed Teacher Aliases */
             confirmed_teacher_aliases?: string[];
             /** Expected Version */
             expected_version: string;
@@ -2599,7 +1969,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "running" | "completed" | "failed" | "applied" | "stale";
+            status: "running" | "completed" | "failed" | "applied" | "stale" | "timeout" | "interrupted" | "crash";
             task?: components["schemas"]["ReconciliationTaskPremises"] | null;
             /** Teacher Display */
             teacher_display?: {
@@ -2626,7 +1996,7 @@ export interface components {
             detail: string;
             /** Kind */
             kind: string;
-            /** Instructor 0008lias */
+            /** Teacher Alias */
             teacher_alias?: string | null;
         };
         /** ReconciliationPlacement */
@@ -2675,7 +2045,7 @@ export interface components {
             reason: string;
             /** Subject Alias */
             subject_alias: string;
-            /** Instructor 0008lias */
+            /** Teacher Alias */
             teacher_alias?: string | null;
         };
         /** ReconciliationSacrifice */
@@ -2695,7 +2065,7 @@ export interface components {
             start?: string | null;
             /** Subject Alias */
             subject_alias: string;
-            /** Instructor 0008lias */
+            /** Teacher Alias */
             teacher_alias: string;
         };
         /** ReconciliationSimulation */
@@ -2756,7 +2126,7 @@ export interface components {
             day?: number | null;
             /** Rooms */
             rooms?: string[];
-            /** Instructor 0008lias */
+            /** Teacher Alias */
             teacher_alias: string;
         };
         /** ReconciliationTaskPremises */
@@ -2779,7 +2149,7 @@ export interface components {
             prior_thread?: components["schemas"]["ReconciliationPriorThread"] | null;
             /** Protect Subject Aliases */
             protect_subject_aliases?: string[];
-            /** Protect Instructor 0008liases */
+            /** Protect Teacher Aliases */
             protect_teacher_aliases?: string[];
             /**
              * Sacrifice Requires Authorization
@@ -2796,7 +2166,7 @@ export interface components {
              * @default day
              */
             scope_type: string;
-            /** Time Change Exception Instructor 0008liases */
+            /** Time Change Exception Teacher Aliases */
             time_change_exception_teacher_aliases?: string[];
             /**
              * Time Is Fixed
@@ -2818,7 +2188,7 @@ export interface components {
         ReconciliationTeacherConfirmation: {
             /** Confirmation Id */
             confirmation_id: string;
-            /** Instructor 0008lias */
+            /** Teacher Alias */
             teacher_alias: string;
         };
         /** ReconciliationToolRequest */
@@ -3401,6 +2771,10 @@ export interface components {
         };
         /** SchedulerRulesView */
         SchedulerRulesView: {
+            /** Impact */
+            impact?: {
+                [key: string]: unknown;
+            } | null;
             /** Rules */
             rules: {
                 [key: string]: unknown;
@@ -3535,73 +2909,6 @@ export interface components {
             sheet_name: string;
             /** Warnings */
             warnings: string[];
-        };
-        /** ScoreTemplateCategoryInput */
-        ScoreTemplateCategoryInput: {
-            /**
-             * Description
-             * @default
-             */
-            description: string;
-            /** Max Score */
-            max_score: number;
-            /** Name */
-            name: string;
-        };
-        /** ScoreTemplateCategoryView */
-        ScoreTemplateCategoryView: {
-            /**
-             * Description
-             * @default
-             */
-            description: string;
-            /** Max Score */
-            max_score: number;
-            /** Name */
-            name: string;
-        };
-        /** ScoreTemplateDeleteRequest */
-        ScoreTemplateDeleteRequest: {
-            /** Expected Version */
-            expected_version: string;
-        };
-        /** ScoreTemplateDeleteResult */
-        ScoreTemplateDeleteResult: {
-            /** Deleted Template Id */
-            deleted_template_id: string;
-        };
-        /** ScoreTemplateSaveRequest */
-        ScoreTemplateSaveRequest: {
-            /** Categories */
-            categories: components["schemas"]["ScoreTemplateCategoryInput"][];
-            /** Expected Version */
-            expected_version: string;
-            /** Instrument Family */
-            instrument_family: string;
-            /** Name */
-            name: string;
-            /**
-             * Semester
-             * @enum {string}
-             */
-            semester: "Semester I" | "Semester II" | "Any";
-        };
-        /** ScoreTemplateView */
-        ScoreTemplateView: {
-            /** Categories */
-            categories: components["schemas"]["ScoreTemplateCategoryView"][];
-            /** Id */
-            id: string;
-            /** Instrument Family */
-            instrument_family: string;
-            /** Name */
-            name: string;
-            /** Semester */
-            semester: string;
-            /** Total Score */
-            total_score: number;
-            /** Version */
-            version: string;
         };
         /** SemesterConfigUpdateRequest */
         SemesterConfigUpdateRequest: {
@@ -3850,379 +3157,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    preview_continuous_assessment_api_assessment_continuous_preview_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                pi_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_preview_continuous_assessment_api_assessment_continuous_preview_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiEnvelope_Union_AssessmentImportInspection__AssessmentImportPreview__"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    build_assessment_exports_api_assessment_exports_build_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                pi_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiEnvelope_AssessmentExportBuildResult_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    download_assessment_export_api_assessment_exports__artifact_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                artifact_id: string;
-            };
-            cookie?: {
-                pi_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    apply_assessment_import_api_assessment_import_apply_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                pi_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AssessmentImportApplyRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiEnvelope_AssessmentImportResult_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    preview_jury_assessment_api_assessment_jury_preview_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                pi_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_preview_jury_assessment_api_assessment_jury_preview_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiEnvelope_AssessmentImportPreview_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_assessment_overview_api_assessment_overview_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                pi_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiEnvelope_list_GradeOverviewRecord__"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_score_templates_api_assessment_score_templates_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                pi_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiEnvelope_list_ScoreTemplateView__"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_score_template_api_assessment_score_templates_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                pi_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ScoreTemplateSaveRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiEnvelope_ScoreTemplateView_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_score_template_api_assessment_score_templates__template_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                template_id: string;
-            };
-            cookie?: {
-                pi_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ScoreTemplateDeleteRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiEnvelope_ScoreTemplateDeleteResult_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    patch_score_template_api_assessment_score_templates__template_id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                template_id: string;
-            };
-            cookie?: {
-                pi_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ScoreTemplateSaveRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiEnvelope_ScoreTemplateView_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    build_score_template_exports_api_assessment_score_templates__template_id__exports_build_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                template_id: string;
-            };
-            cookie?: {
-                pi_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiEnvelope_AssessmentExportBuildResult_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     exchange_bootstrap_token_api_auth_exchange_post: {
         parameters: {
             query?: never;
@@ -4393,284 +3327,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    build_jury_exports_api_jury_exports_build_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                pi_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["JuryScheduleRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiEnvelope_JuryExportBuildResult_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    download_jury_export_api_jury_exports__artifact_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                artifact_id: string;
-            };
-            cookie?: {
-                pi_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    preview_jury_schedule_api_jury_schedule_preview_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                pi_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["JuryScheduleRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiEnvelope_JuryScheduleView_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_jury_sessions_api_jury_sessions_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                pi_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiEnvelope_list_JurySessionView__"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_jury_session_api_jury_sessions_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                pi_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["JurySessionCreateRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiEnvelope_JurySessionView_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    patch_jury_session_api_jury_sessions_patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                pi_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["JurySessionUpdateRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiEnvelope_JurySessionView_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_jury_session_api_jury_sessions__session_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: {
-                pi_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["JurySessionDeleteRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiEnvelope_JurySessionDeleteResult_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    reorder_jury_students_api_jury_sessions__session_id__reorder_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: {
-                pi_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["JuryStudentReorderRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiEnvelope_JurySessionView_"];
                 };
             };
             /** @description Validation Error */

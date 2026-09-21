@@ -154,6 +154,11 @@
   box-shadow: var(--elevation-raised), var(--bezel-inset-highlight);
 }
 .piIntervention > button { width: 100%; margin-top: 10px; }
+.piProgress { display: grid; gap: 4px; margin-top: 10px; padding: 8px 10px; border: 1px solid var(--structure); border-radius: var(--radius-shell); background: var(--surface-subtle); }
+.piProgress > small { color: var(--muted-readable); }
+.piProgressEvents { margin: 0; padding-left: 18px; font-size: calc(11.5px + var(--text-size-offset)); color: var(--muted-readable); }
+.piProgressEvents li + li { margin-top: 2px; }
+.piProgressEvents li:last-child { color: inherit; font-weight: 600; }
 .piTalk { display: grid; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--structure); }
 .piTalk small { color: var(--muted-readable); }
 .piTalk input[type="text"] {

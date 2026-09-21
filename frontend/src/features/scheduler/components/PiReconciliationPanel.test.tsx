@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { applyReconciliation, investigateReconciliation, schedulerSessionKey, type PiRuntime } from '../api'
 import { PiReconciliationPanel } from './PiReconciliationPanel'
@@ -110,7 +111,7 @@ function investigationWith(overrides: Partial<Investigation> = {}, simulationOve
       title: '换房后安置 A 的课',
       rationale: '把 B 的教师日区块移到 R2，R1 就能安置 A。',
       trade_offs: ['教师 B 当天换一次房。'],
-      limitations: ['只搜索了当天。'],
+      limitations: ['Searched only that day.'],
       coverage: { subjects_inspected: 1, subjects_total: 1, uninspected_count: 0, simulation_count: 1 },
       created_at: '2026-09-16T00:00:01+00:00',
       sacrifices: [],
@@ -142,15 +143,17 @@ const runtime: PiRuntime = {
 function renderPanel(investigation: Investigation, disabled = false, piRuntime: PiRuntime = runtime) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
-    <QueryClientProvider client={queryClient}>
-      <PiReconciliationPanel
-        activeDay={1}
-        disabled={disabled}
-        investigation={investigation}
-        piRuntime={piRuntime}
-        workspaceVersion="v1"
-      />
-    </QueryClientProvider>,
+    <MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <PiReconciliationPanel
+          activeDay={1}
+          disabled={disabled}
+          investigation={investigation}
+          piRuntime={piRuntime}
+          workspaceVersion="v1"
+        />
+      </QueryClientProvider>
+    </MemoryRouter>,
   )
 }
 
@@ -161,14 +164,14 @@ describe('PiReconciliationPanel', () => {
     renderPanel(investigationWith())
 
     expect(screen.getByText('换房后安置 A 的课')).toBeVisible()
-    expect(screen.getByLabelText('教师调整')).toHaveTextContent(/Instructor 0009\s+10:00–11:00\s+R1 → R2/)
-    expect(screen.getByLabelText('教师调整')).toHaveTextContent(/Instructor 0008\s+10:00–11:00\s+未排 → R1/)
-    expect(screen.getByText('逐课明细')).toBeVisible()
-    expect(screen.queryByRole('table', { name: /预期变更/ })).not.toBeNull()
+    expect(screen.getByLabelText('Teacher adjustments')).toHaveTextContent(/Instructor 0009\s+10:00–11:00\s+R1 → R2/)
+    expect(screen.getByLabelText('Teacher adjustments')).toHaveTextContent(/Instructor 0008\s+10:00–11:00\s+Unplaced → R1/)
+    expect(screen.getByText('Per-lesson details')).toBeVisible()
+    expect(screen.queryByRole('table', { name: /Expected changes/ })).not.toBeNull()
     expect(screen.queryByText('把 B 的教师日区块移到 R2，R1 就能安置 A。')).toBeNull()
-    expect(screen.queryByText('只搜索了当天。')).toBeNull()
-    expect(screen.getByRole('button', { name: '应用这个建议' })).toBeEnabled()
-    expect(screen.getByText('你上次说了：把这一节排进去')).toBeVisible()
+    expect(screen.getByText(/Searched only that day/)).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Apply this recommendation' })).toBeEnabled()
+    expect(screen.getByText('Your last instruction: 把这一节排进去')).toBeVisible()
   })
 
   it('shows a completed no-package result without an Apply action', () => {
@@ -189,9 +192,9 @@ describe('PiReconciliationPanel', () => {
     renderPanel(stopped)
 
     expect(screen.getByTestId('reconciliation-stop-result')).toBeVisible()
-    expect(screen.queryByText(/覆盖：检查/)).toBeNull()
+    expect(screen.queryByText(/coverage: inspected/)).toBeNull()
     expect(screen.getByText(/Instructor 0008 · Demo: Alpha/)).toBeVisible()
-    expect(screen.queryByRole('button', { name: '应用这个建议' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Apply this recommendation' })).not.toBeInTheDocument()
   })
 
   it('shows an emergency room-type exception as a human decision', () => {
@@ -214,9 +217,9 @@ describe('PiReconciliationPanel', () => {
 
     renderPanel(stopped)
 
-    expect(screen.getByText('需要例外授权 · Instructor 0008')).toBeVisible()
+    expect(screen.getByText('Exception authorization · Instructor 0008')).toBeVisible()
     expect(screen.queryByText(/R107B is empty/)).toBeNull()
-    expect(screen.queryByRole('button', { name: '应用这个建议' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Apply this recommendation' })).not.toBeInTheDocument()
   })
 
   it('discloses a same-day time change and asks for that teacher', () => {
@@ -226,12 +229,12 @@ describe('PiReconciliationPanel', () => {
       changes: [{ ...changeRows[0], time_changed: true, to: { room: 'R1', day: 1, start: '11:00', end: '12:00' } }],
     }))
 
-    expect(screen.getByText(/改时间的例外条款/)).toBeVisible()
-    expect(screen.getByLabelText('Instructor 0009 已同意')).toBeVisible()
-    expect(screen.getByRole('button', { name: '应用这个建议' })).toBeDisabled()
+    expect(screen.getByText(/time-change exception/)).toBeVisible()
+    expect(screen.getByLabelText('Instructor 0009 has agreed')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Apply this recommendation' })).toBeDisabled()
 
-    fireEvent.click(screen.getByLabelText('Instructor 0009 已同意'))
-    expect(screen.getByRole('button', { name: '应用这个建议' })).toBeEnabled()
+    fireEvent.click(screen.getByLabelText('Instructor 0009 has agreed'))
+    expect(screen.getByRole('button', { name: 'Apply this recommendation' })).toBeEnabled()
   })
 
   it('names remaining work and sacrifices with real people, not aliases', () => {
@@ -259,7 +262,7 @@ describe('PiReconciliationPanel', () => {
 
     expect(screen.getByText('Instructor 0008 · Demo: Alpha')).toBeVisible()
     expect(screen.queryByText(/Needs a business decision/)).toBeNull()
-    expect(screen.getByLabelText('授权牺牲 Instructor 0009 10:00–11:00')).toBeVisible()
+    expect(screen.getByLabelText('Authorize sacrifice Instructor 0009 10:00–11:00')).toBeVisible()
   })
 
   it('blocks apply until each sacrifice is authorized separately', () => {
@@ -270,17 +273,17 @@ describe('PiReconciliationPanel', () => {
       metrics: { resolved_delta: 1, remaining_unresolved: 1, sacrificed_assignments: 1 },
     }))
 
-    expect(screen.getByText(/需要你单独授权/)).toBeVisible()
-    expect(screen.getByRole('button', { name: '应用这个建议' })).toBeDisabled()
+    expect(screen.getByText(/authorize each separately/)).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Apply this recommendation' })).toBeDisabled()
 
-    fireEvent.click(screen.getByLabelText('授权牺牲 Instructor 0009 10:00–11:00'))
-    expect(screen.getByRole('button', { name: '应用这个建议' })).toBeEnabled()
+    fireEvent.click(screen.getByLabelText('Authorize sacrifice Instructor 0009 10:00–11:00'))
+    expect(screen.getByRole('button', { name: 'Apply this recommendation' })).toBeEnabled()
   })
 
   it('lets the operator pick a catalog model and thinking level without a teacher whitelist', () => {
     renderPanel(investigationWith())
 
-    expect(screen.getByLabelText('对 Pi 说')).toBeVisible()
+    expect(screen.getByLabelText('Message to Pi')).toBeVisible()
     expect(screen.getByLabelText('Pi model')).toHaveValue('openai-codex::gpt-5.6-luna')
     expect(screen.getByRole('option', { name: 'deepseek / deepseek-flash' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'kimi-coding / k3' })).toBeInTheDocument()
@@ -289,7 +292,7 @@ describe('PiReconciliationPanel', () => {
     expect(screen.getByRole('option', { name: 'high' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Instructor 0009 本次不要动')).toBeNull()
     expect(screen.queryByLabelText('Instructor 0009 允许同日改时（最后例外）')).toBeNull()
-    expect(screen.getByRole('button', { name: '按这句话再查' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Investigate again with this' })).toBeEnabled()
   })
 
   it('posts the selected provider, model, and thinking level', async () => {
@@ -301,7 +304,7 @@ describe('PiReconciliationPanel', () => {
 
     fireEvent.change(screen.getByLabelText('Pi model'), { target: { value: 'deepseek::deepseek-flash' } })
     fireEvent.change(screen.getByLabelText('Pi thinking'), { target: { value: 'high' } })
-    fireEvent.click(screen.getByRole('button', { name: '按这句话再查' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Investigate again with this' }))
 
     await waitFor(() => expect(investigateReconciliation).toHaveBeenCalledWith('deepseek-flash', 'v1', 1, {
       goal: '',
@@ -317,8 +320,8 @@ describe('PiReconciliationPanel', () => {
     } as never)
     renderPanel(investigationWith())
 
-    fireEvent.change(screen.getByLabelText('对 Pi 说'), { target: { value: '不要动 Instructor 0009，那两节 Voice 可以改时' } })
-    fireEvent.click(screen.getByRole('button', { name: '按这句话再查' }))
+    fireEvent.change(screen.getByLabelText('Message to Pi'), { target: { value: '不要动 Instructor 0009，那两节 Voice 可以改时' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Investigate again with this' }))
 
     await waitFor(() => expect(investigateReconciliation).toHaveBeenCalledWith('gpt-5.6-luna', 'v1', 1, {
       goal: '不要动 Instructor 0009，那两节 Voice 可以改时',
@@ -332,8 +335,8 @@ describe('PiReconciliationPanel', () => {
       brief: { ...investigationWith().brief!, termination: 'budget_exhausted' },
     }))
 
-    expect(screen.getByText(/调查被内部上限中断/)).toBeVisible()
-    expect(screen.getByRole('button', { name: '应用这个建议' })).toBeEnabled()
+    expect(screen.getByText(/cut off by the internal limit/)).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Apply this recommendation' })).toBeEnabled()
   })
 
   it('refetches the schedule session after apply so the grid updates like a manual assign', async () => {
@@ -346,18 +349,20 @@ describe('PiReconciliationPanel', () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
     render(
-      <QueryClientProvider client={queryClient}>
-        <PiReconciliationPanel
-          activeDay={1}
-          disabled={false}
-          investigation={investigationWith()}
-          piRuntime={runtime}
-          workspaceVersion="v1"
-        />
-      </QueryClientProvider>,
+      <MemoryRouter>
+        <QueryClientProvider client={queryClient}>
+          <PiReconciliationPanel
+            activeDay={1}
+            disabled={false}
+            investigation={investigationWith()}
+            piRuntime={runtime}
+            workspaceVersion="v1"
+          />
+        </QueryClientProvider>
+      </MemoryRouter>,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: '应用这个建议' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Apply this recommendation' }))
 
     await waitFor(() => expect(applyReconciliation).toHaveBeenCalled())
     expect(invalidate).toHaveBeenCalledWith({ queryKey: schedulerSessionKey })
@@ -369,7 +374,7 @@ describe('PiReconciliationPanel', () => {
       brief: {
         ...investigationWith().brief!,
         remaining_issues: [
-          { subject_alias: 'issue-9', teacher_alias: 'teacher-1', label: 'Demo: Alpha', reason: '仍未排' },
+          { subject_alias: 'issue-9', teacher_alias: 'teacher-1', label: 'Demo: Alpha', reason: 'Still unplaced' },
         ],
       },
       apply_result: {
@@ -386,16 +391,16 @@ describe('PiReconciliationPanel', () => {
     renderPanel(investigation)
 
     expect(screen.getByRole('heading', { name: 'Pi reconciliation investigator' })).toBeVisible()
-    expect(screen.getByText('已应用')).toBeVisible()
-    expect(screen.getByLabelText('已完成调整')).toHaveTextContent(/Instructor 0009\s+10:00–11:00\s+R1 → R2/)
-    expect(screen.getByLabelText('仍未排')).toHaveTextContent('Instructor 0008 · Demo: Alpha')
-    expect(screen.getByText('逐课明细')).toBeVisible()
-    expect(screen.queryByText('此前 1 次委托')).toBeNull()
-    fireEvent.click(screen.getByText('逐课明细'))
-    expect(screen.getByRole('table', { name: /实际完成的变更/ })).toBeVisible()
-    expect(screen.queryByRole('button', { name: '应用这个建议' })).toBeNull()
-    expect(screen.getByLabelText('对 Pi 说')).toBeVisible()
-    expect(screen.getByRole('button', { name: '按这句话再查' })).toBeEnabled()
+    expect(screen.getByText('Applied')).toBeVisible()
+    expect(screen.getByLabelText('Applied adjustments')).toHaveTextContent(/Instructor 0009\s+10:00–11:00\s+R1 → R2/)
+    expect(screen.getByLabelText('Still unplaced')).toHaveTextContent('Instructor 0008 · Demo: Alpha')
+    expect(screen.getByText('Per-lesson details')).toBeVisible()
+    expect(screen.queryByText('1 prior delegation')).toBeNull()
+    fireEvent.click(screen.getByText('Per-lesson details'))
+    expect(screen.getByRole('table', { name: /Changes actually applied/ })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Apply this recommendation' })).toBeNull()
+    expect(screen.getByLabelText('Message to Pi')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Investigate again with this' })).toBeEnabled()
   })
 
   it('records a rejected recommendation without applying anything', () => {
@@ -407,8 +412,8 @@ describe('PiReconciliationPanel', () => {
       },
     }))
 
-    expect(screen.getByText('已标记不采用')).toBeVisible()
+    expect(screen.getByText('Marked as not pursued')).toBeVisible()
     expect(screen.getByText(/这个代价不能接受/)).toBeVisible()
-    expect(screen.queryByRole('button', { name: '应用这个建议' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Apply this recommendation' })).toBeNull()
   })
 })

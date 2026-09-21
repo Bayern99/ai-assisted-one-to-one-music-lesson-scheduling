@@ -260,7 +260,7 @@ class ReconciliationInvestigationView(_StrictModel):
     scope_id: str
     day: Optional[int] = None
     stale: bool
-    status: Literal["running", "completed", "failed", "applied", "stale"]
+    status: Literal["running", "completed", "failed", "applied", "stale", "timeout", "interrupted", "crash"]
     created_at: str
     tool_calls: int = Field(ge=0)
     coverage: dict

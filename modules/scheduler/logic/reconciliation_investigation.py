@@ -1895,11 +1895,11 @@ class ReconciliationInvestigation:
             {
                 "termination": "budget_exhausted",
                 "primary_simulation_id": primary_id or "",
-                "title": "调查中断，已有已验证方案" if primary_id else "调查达到上限",
+                "title": "Interrupted with a verified package available" if primary_id else "Investigation limit reached",
                 "rationale": (
-                    "调查在交卷前被上限打断，但已有通过校验且能减少未排的方案。"
+                    "The search was cut off by a bound before submission, but a validated package that reduces unplaced lessons exists."
                     if primary_id
-                    else "调查在交卷前被上限打断。已做的沙盒仍保留；未覆盖的路线不是无解证明。"
+                    else "The search was cut off by a bound before submission. Completed sandbox results are kept; uncovered routes are not proof of impossibility."
                 ),
                 "limitations": [
                     f"Stopped by the {bound} bound after {self._tool_calls} exploration calls."

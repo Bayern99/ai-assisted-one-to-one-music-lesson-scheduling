@@ -196,6 +196,10 @@ class _Capability:
     run_id: str
     investigation: ReconciliationInvestigation
     tool_events: list[dict[str, Any]] = field(default_factory=list)
+    progress: Callable[..., None] | None = None
+    started: float = 0.0
+    first_valid_at: float | None = None
+    rejected_simulations: int = 0
 
 
 class PiReconciliationCapabilityStore:
@@ -209,9 +213,21 @@ class PiReconciliationCapabilityStore:
             min_ttl_seconds=60,
         )
 
-    def create(self, investigation: ReconciliationInvestigation, *, ttl_seconds: int = 600) -> str:
+    def create(
+        self,
+        investigation: ReconciliationInvestigation,
+        *,
+        ttl_seconds: int = 600,
+        progress: Callable[..., None] | None = None,
+        started: float = 0.0,
+    ) -> str:
         return self._tokens.create(
-            _Capability(run_id=investigation.run_id, investigation=investigation),
+            _Capability(
+                run_id=investigation.run_id,
+                investigation=investigation,
+                progress=progress,
+                started=started,
+            ),
             ttl_seconds=ttl_seconds,
         )
 
@@ -231,23 +247,96 @@ class PiReconciliationCapabilityStore:
 
     def inspect(self, token: str, focus_aliases=None) -> dict[str, Any]:
         def _run(item: _Capability):
-            result = item.investigation.inspect_reconciliation(focus_aliases)
+            self._emit(item, "inspection_started", "Analyzing the day's schedule")
+            try:
+                result = item.investigation.inspect_reconciliation(focus_aliases)
+            except PackageRejected as exc:
+                self._emit(item, "inspection_rejected", "Inspection rejected by Python", {"reason": str(exc)})
+                raise
             self._record(item, "inspect_reconciliation", {
+                "subjects": len(result.get("subjects") or []),
+                "edges": len(result.get("edges") or []),
+            })
+            self._emit(item, "inspection_completed", "Occupancy inspected", {
                 "subjects": len(result.get("subjects") or []),
                 "edges": len(result.get("edges") or []),
             })
             return result
         return self._tokens.mutate(token, _run)
+    def close_at_bound(self, token: str, *, bound: str = "runtime") -> dict[str, Any]:
+        def _run(item: _Capability):
+            result = item.investigation.close_at_server_bound(bound=bound)
+            self._record(item, "close_at_server_bound", {
+                "brief_id": result.get("brief_id"),
+                "termination": result.get("termination"),
+                "bound": bound,
+            })
+            self._emit(item, "investigation_closed", "Investigation closed at a bound", {
+                "bound": bound,
+                "termination": result.get("termination"),
+            })
+            return result
+        return self._tokens.mutate(token, _run)
 
+    def _emit(self, item: _Capability, type: str, label: str, detail: dict[str, Any] | None = None) -> None:
+        # Python is the authoritative progress source; a broken observer must
+        # never break scheduling work.
+        if item.progress is None:
+            return
+        try:
+            item.progress(type, label, detail or {})
+        except Exception:
+            pass
+
+    def stats(self, token: str) -> dict[str, Any]:
+        item = self._tokens.get(token)
+        return {
+            "rejected_simulations": item.rejected_simulations,
+            "first_valid_at": item.first_valid_at,
+        }
+
+    def reject(self, token: str, *, type: str, label: str, reason: str) -> None:
+        """Record a rejection decided before the store method could run."""
+        def _run(item: _Capability):
+            item.rejected_simulations += 1
+            self._emit(item, type, label, {"reason": reason})
+        return self._tokens.mutate(token, _run)
     def simulate(self, token: str, changes) -> dict[str, Any]:
         def _run(item: _Capability):
-            result = _model_safe_simulation(item.investigation.simulate_package(changes))
+            self._emit(item, "simulation_started", "Simulating a candidate package", {
+                "change_count": len(changes or []),
+            })
+            try:
+                result = _model_safe_simulation(item.investigation.simulate_package(changes))
+            except PackageRejected as exc:
+                item.rejected_simulations += 1
+                self._emit(item, "simulation_rejected", "Package rejected by Python validation", {"reason": str(exc)})
+                raise
             self._record(item, "simulate_reconciliation_package", {
                 "simulation_id": result.get("simulation_id"),
                 "status": result.get("status"),
                 "feasible": bool(result.get("feasible")),
                 "duplicate": bool(result.get("duplicate")),
                 "change_count": len(result.get("normalized_changes") or []),
+            })
+            if result.get("rejection"):
+                item.rejected_simulations += 1
+                self._emit(item, "simulation_rejected", "Package rejected by Python validation", {
+                    "reason": str(result.get("rejection") or ""),
+                    "failure_codes": list(result.get("failure_codes") or []),
+                })
+                return result
+            if result.get("status") in {"feasible", "conditional"} and item.first_valid_at is None:
+                item.first_valid_at = monotonic()
+                self._emit(item, "first_valid_candidate", "Found a valid candidate", {
+                    "simulation_id": result.get("simulation_id"),
+                    "elapsed_ms": round((item.first_valid_at - item.started) * 1000) if item.started else 0,
+                })
+            self._emit(item, "simulation_completed", "Candidate package validated", {
+                "simulation_id": result.get("simulation_id"),
+                "status": result.get("status"),
+                "feasible": bool(result.get("feasible")),
+                "duplicate": bool(result.get("duplicate")),
             })
             return result
         return self._tokens.mutate(token, _run)
@@ -260,19 +349,13 @@ class PiReconciliationCapabilityStore:
                 "termination": result.get("termination"),
                 "simulation_count": result.get("coverage", {}).get("simulation_count", 0),
             })
-            return result
-        return self._tokens.mutate(token, _run)
-
-    def close_at_bound(self, token: str, *, bound: str = "runtime") -> dict[str, Any]:
-        def _run(item: _Capability):
-            result = item.investigation.close_at_server_bound(bound=bound)
-            self._record(item, "close_at_server_bound", {
+            self._emit(item, "brief_submitted", "Brief submitted", {
                 "brief_id": result.get("brief_id"),
                 "termination": result.get("termination"),
-                "bound": bound,
             })
             return result
         return self._tokens.mutate(token, _run)
+
 
     def _record(self, item: _Capability, tool: str, result: dict[str, Any]) -> None:
         item.tool_events.append({"tool": tool, "result": copy.deepcopy(result)})
@@ -610,6 +693,105 @@ def _operator_rpc_prompt(investigation: ReconciliationInvestigation) -> str:
     )
 
 
+def _rpc_event_to_progress(event: dict[str, Any]):
+    """Map a raw Pi RPC stream event to an operation progress tuple, or None.
+
+    These events are model-adjacent liveness evidence only; the authoritative
+    business progress is emitted by the capability store in Python.
+    """
+    event_type = str(event.get("type") or "")
+    if event_type == "agent_start":
+        return ("agent_alive", "Pi agent started", {})
+    if event_type == "turn_start":
+        return ("turn_activity", "Model working", {})
+    if event_type == "tool_execution_start":
+        return ("model_tool_request", "Model requested a tool", {
+            "tool": str(event.get("toolName") or ""),
+        })
+    if event_type == "tool_execution_end":
+        return ("model_tool_end", "Tool execution finished", {
+            "tool": str(event.get("toolName") or ""),
+            "is_error": bool(event.get("isError")),
+        })
+    if event_type == "auto_retry_start":
+        return ("provider_retry", "Provider retrying", {
+            "attempt": int(event.get("attempt") or 0),
+            "max_attempts": int(event.get("maxAttempts") or 0),
+            "delay_ms": int(event.get("delayMs") or 0),
+        })
+    if event_type == "auto_retry_end":
+        return ("provider_retry_end", "Provider retry finished", {
+            "attempt": int(event.get("attempt") or 0),
+            "success": bool(event.get("success")),
+        })
+    if event_type == "agent_settled":
+        return ("agent_settled", "Pi finished", {})
+    if event_type == "process_spawn":
+        return ("process_spawned", "Pi process started", {
+            "spawn_ms": int(event.get("spawn_ms") or 0),
+        })
+    if event_type == "first_agent_activity":
+        return ("first_agent_activity", "Pi first response", {
+            "elapsed_ms": int(event.get("elapsed_ms") or 0),
+        })
+    return None
+
+
+def _rpc_metadata(rpc_result, rpc_failure, op_started):
+    if rpc_result is not None:
+        return {
+            "pi_version": rpc_result.pi_version,
+            "provider": rpc_result.provider,
+            "model": rpc_result.model,
+            "latency_ms": rpc_result.latency_ms,
+            "usage": dict(rpc_result.usage or {}),
+        }
+    latency = getattr(rpc_failure, "latency_ms", None) if rpc_failure is not None else None
+    if latency is None:
+        latency = round((monotonic() - op_started) * 1000) if op_started else 0
+    return {
+        "pi_version": "",
+        "provider": str(getattr(rpc_failure, "provider", "") or "") if rpc_failure else "",
+        "model": str(getattr(rpc_failure, "model", "") or "") if rpc_failure else "",
+        "latency_ms": int(latency),
+        "usage": dict(getattr(rpc_failure, "usage", {}) or {}) if rpc_failure else {},
+    }
+
+
+def _failure_status(rpc_failure):
+    if rpc_failure is None:
+        return "completed", None
+    reason = str(getattr(rpc_failure, "reason", "timeout") or "timeout")
+    return {
+        "timeout": ("timeout", "runtime_timeout"),
+        "exited": ("crash", "crash"),
+        "interrupted": ("interrupted", "interrupted"),
+    }.get(reason, ("failed", "error"))
+
+
+def _progress_metrics(record, stats, op_started):
+    simulations = record.get("simulations") if isinstance(record.get("simulations"), dict) else {}
+    valid = 0
+    for item in simulations.values():
+        public = item.get("public") if isinstance(item, dict) else None
+        if isinstance(public, dict) and public.get("status") in {"feasible", "conditional"}:
+            valid += 1
+    task = record.get("task") if isinstance(record.get("task"), dict) else {}
+    first_valid_at = (stats or {}).get("first_valid_at")
+    return {
+        "tool_calls": int(record.get("tool_calls") or 0),
+        "tool_call_budget": int(task.get("tool_call_budget") or 0),
+        "simulation_count": len(simulations),
+        "valid_candidates": valid,
+        "rejected_candidates": int((stats or {}).get("rejected_simulations") or 0),
+        "first_valid_candidate_ms": (
+            round((first_valid_at - op_started) * 1000)
+            if first_valid_at and op_started
+            else None
+        ),
+    }
+
+
 def run_pi_reconciliation_operation(
     *,
     context,
@@ -626,12 +808,27 @@ def run_pi_reconciliation_operation(
     tool_extension: str | None = None,
 ) -> None:
     """Run Pi, persist the private snapshot locally, and ledger public evidence."""
-    token = capability_store.create(investigation)
+    op_started = monotonic()
+
+    def progress(type: str, label: str, detail: dict[str, Any] | None = None) -> None:
+        registry.emit(operation_id, type=type, source="python", label=label, detail=detail)
+
+    token = capability_store.create(investigation, progress=progress, started=op_started)
     failure = ""
     record = None
+    rpc_result = None
+    rpc_failure: PiRpcTimeout | None = None
     try:
         registry.start(operation_id, phase="investigating")
-        rpc_result = None
+        progress("investigation_started", "Investigation started", {"day": investigation.day})
+
+        def on_rpc_event(event: dict[str, Any]) -> None:
+            mapped = _rpc_event_to_progress(event)
+            if mapped is None:
+                return
+            event_type, label, detail = mapped
+            registry.emit(operation_id, type=event_type, source="pi_rpc", label=label, detail=detail)
+
         try:
             rpc_result = (rpc_runner or run_pi_rpc)(
                 _operator_rpc_prompt(investigation),
@@ -646,9 +843,10 @@ def run_pi_reconciliation_operation(
                     "PI_RECONCILIATION_TOOL_URL": tool_url,
                     "PI_RECONCILIATION_CAPABILITY": token,
                 },
+                on_event=on_rpc_event,
             )
-        except PiRpcTimeout:
-            rpc_result = None
+        except PiRpcTimeout as exc:
+            rpc_failure = exc
         if rpc_result is not None and (not rpc_result.provider or not rpc_result.model):
             raise PiReconciliationError("Pi returned incomplete provider/model metadata.")
         record = capability_store.snapshot(token)
@@ -661,14 +859,18 @@ def run_pi_reconciliation_operation(
         brief = record.get("brief")
         if not isinstance(brief, dict):
             raise PiReconciliationError("Pi finished without submitting a reconciliation brief.")
+        operation_status, rpc_termination = _failure_status(rpc_failure)
+        if rpc_failure is not None:
+            progress(
+                "investigation_interrupted",
+                "Investigation stopped at a runtime bound",
+                {"reason": rpc_termination or "error"},
+            )
+        meta = _rpc_metadata(rpc_result, rpc_failure, op_started)
         record.update({
             "agent_run_id": operation_id,
-            "operation_status": "completed",
-            "pi_version": getattr(rpc_result, "pi_version", "") or "",
-            "provider": getattr(rpc_result, "provider", "") or "",
-            "model": getattr(rpc_result, "model", "") or "",
-            "latency_ms": getattr(rpc_result, "latency_ms", 0) or 0,
-            "usage": getattr(rpc_result, "usage", {}) or {},
+            "operation_status": operation_status,
+            **meta,
         })
         registry.start(operation_id, phase="saving_reconciliation")
         with context.mutation_lock:
@@ -679,6 +881,12 @@ def run_pi_reconciliation_operation(
             "run_id": investigation.run_id,
             "investigation_id": investigation.investigation_id,
             "workspace_version": workspace_version,
+            "termination": rpc_termination or str(brief.get("termination") or ""),
+            "latency_ms": meta["latency_ms"],
+            "provider": meta["provider"],
+            "model": meta["model"],
+            "usage": meta["usage"],
+            **_progress_metrics(record, capability_store.stats(token), op_started),
         })
     except (PiReconciliationError, PiOptimizerInterventionError) as exc:
         if record is None:
@@ -690,21 +898,24 @@ def run_pi_reconciliation_operation(
             record.update({
                 "agent_run_id": operation_id,
                 "operation_status": "completed",
-                "pi_version": "",
-                "provider": "",
-                "model": "",
-                "latency_ms": 0,
-                "usage": {},
+                **_rpc_metadata(None, None, op_started),
             })
             registry.start(operation_id, phase="saving_reconciliation")
             with context.mutation_lock:
                 _persist_private_investigation(context, record)
                 _record_attempt(context, investigation.run_id, record, operation_id=operation_id)
                 workspace_version = compute_workspace_version(context.loader.base_dir, context=context)
+            brief = record.get("brief") or {}
             registry.complete(operation_id, result={
                 "run_id": investigation.run_id,
                 "investigation_id": investigation.investigation_id,
                 "workspace_version": workspace_version,
+                "termination": str(brief.get("termination") or ""),
+                "latency_ms": record.get("latency_ms") or 0,
+                "provider": record.get("provider") or "",
+                "model": record.get("model") or "",
+                "usage": record.get("usage") or {},
+                **_progress_metrics(record, capability_store.stats(token), op_started),
             })
             return
         failure = str(exc)
@@ -715,7 +926,10 @@ def run_pi_reconciliation_operation(
                 _record_attempt(context, investigation.run_id, record, operation_id=operation_id, failure=failure)
         except Exception:
             pass
-        registry.fail(operation_id, error=failure)
+        registry.fail(operation_id, error=failure, result={
+            "termination": "error",
+            **_progress_metrics(record, None, op_started),
+        })
     except Exception:
         failure = "Pi reconciliation failed unexpectedly; no schedule was changed."
         try:
@@ -727,7 +941,10 @@ def run_pi_reconciliation_operation(
                 _record_attempt(context, investigation.run_id, record, operation_id=operation_id, failure=failure)
         except Exception:
             pass
-        registry.fail(operation_id, error=failure)
+        registry.fail(operation_id, error=failure, result={
+            "termination": "crash",
+            **_progress_metrics(record or {}, None, op_started),
+        })
     finally:
         capability_store.revoke(token)
 
@@ -904,3 +1121,13 @@ def apply_reconciliation(
     except Exception as exc:
         record_update_error = str(exc)
     return result, record_update_error
+
+
+def reconciliation_operation_id(context, investigation_id: str) -> str | None:
+    """The operation that produced an investigation record, for error correlation."""
+    try:
+        _state, _runtime, record = _rehydrate(context, investigation_id)
+    except PiReconciliationError:
+        return None
+    value = str(record.get("agent_run_id") or "")
+    return value or None

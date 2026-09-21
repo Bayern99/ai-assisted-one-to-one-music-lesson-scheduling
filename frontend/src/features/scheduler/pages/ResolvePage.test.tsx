@@ -354,10 +354,10 @@ describe('ResolvePage', () => {
     expect(screen.getByRole('option', { name: 'deepseek / deepseek-flash' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'kimi-coding / k3' })).toBeInTheDocument()
     expect(screen.getByLabelText('Pi thinking')).toHaveValue('off')
-    expect(screen.getByRole('button', { name: /调查 Thursday 的连带调整/ })).toBeEnabled()
+    expect(screen.getByRole('button', { name: /Investigate Thursday's linked adjustments/ })).toBeEnabled()
     expect(screen.queryByRole('button', { name: 'Investigate with Pi' })).toBeNull()
     expect(screen.queryByText('Plan-level Pi intervention')).toBeNull()
-    expect(screen.queryByLabelText(/本次不要动/)).toBeNull()
+    expect(screen.queryByLabelText(/do not touch this time/)).toBeNull()
     expect(screen.queryByRole('button', { name: 'Inspect timetable' })).toBeNull()
   })
 

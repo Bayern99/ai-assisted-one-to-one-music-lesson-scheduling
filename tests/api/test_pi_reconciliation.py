@@ -299,7 +299,9 @@ def test_rpc_timeout_closes_as_interrupted_investigation(auth_client):
     _advice, public = _public(auth_client)
     assert public["brief"]["termination"] == "budget_exhausted"
     assert not public["brief"]["primary_simulation_id"]
-    assert public["status"] == "completed"
+    # A wall-clock timeout is not a completed investigation: the status names the
+    # bound that stopped it, while the partial brief stays usable.
+    assert public["status"] == "timeout"
     assert public["brief"]["remaining_issues"]
 
 

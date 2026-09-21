@@ -22,6 +22,7 @@ from modules.api.services.pi_reconciliation import (
     build_reconciliation_investigation,
     apply_reconciliation,
     decide_reconciliation,
+    reconciliation_operation_id,
     run_pi_reconciliation_operation,
 )
 from modules.api.services.scheduler import (
@@ -155,9 +156,12 @@ def decide_reconciliation_investigation(
             advice = build_resolution_view(context)
             workspace_version = compute_workspace_version(base_dir, context=context)
     except PiReconciliationError as exc:
-        raise ApiProblem(400, "PI_RECONCILIATION_DECISION_REJECTED", str(exc)) from exc
-    except SchedulerCommandRejected as exc:
-        raise ApiProblem(400, "PI_RECONCILIATION_DECISION_REJECTED", exc.message) from exc
+        raise ApiProblem(
+            400,
+            "PI_RECONCILIATION_DECISION_REJECTED",
+            str(exc),
+            operation_id=reconciliation_operation_id(context, investigation_id),
+        ) from exc
     return ApiEnvelope(data=ResolutionAdvice(**advice), workspace_version=workspace_version)
 
 
@@ -195,7 +199,16 @@ def apply_reconciliation_investigation(
             workspace_version = compute_workspace_version(base_dir, context=context)
     except (PiReconciliationError, SchedulerCommandRejected) as exc:
         message = exc.message if isinstance(exc, SchedulerCommandRejected) else str(exc)
-        raise ApiProblem(400, "PI_RECONCILIATION_APPLY_REJECTED", message) from exc
+        raise ApiProblem(
+            400,
+            "PI_RECONCILIATION_APPLY_REJECTED",
+            message,
+            operation_id=(
+                reconciliation_operation_id(context, investigation_id)
+                if isinstance(exc, PiReconciliationError)
+                else None
+            ),
+        ) from exc
     except SchedulerPersistenceConflict as exc:
         current = compute_workspace_version(base_dir, context=context)
         raise WorkspaceChanged(expected=command.expected_version, current=current) from exc
@@ -228,7 +241,14 @@ def use_pi_reconciliation_tool(
             params = ReconciliationSimulateParams.model_validate(command.params)
             current = compute_workspace_version(request.app.state.config.base_dir, context=context)
             if current != scope["workspace_version"]:
-                raise PiReconciliationError("The reconciliation snapshot is stale; refresh the investigation.")
+                reason = "The reconciliation snapshot is stale; refresh the investigation."
+                store.reject(
+                    capability,
+                    type="simulation_rejected",
+                    label="Package rejected by Python validation",
+                    reason=reason,
+                )
+                raise PiReconciliationError(reason)
             result = store.simulate(
                 capability,
                 [item.model_dump(mode="json") for item in params.changes],

@@ -12,7 +12,7 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from time import monotonic
-from typing import Any
+from typing import Any, Callable
 
 
 DEFAULT_PROVIDER = "cursor"
@@ -72,6 +72,23 @@ class PiOptimizerInterventionError(RuntimeError):
 class PiRpcTimeout(PiOptimizerInterventionError):
     """Investigation interrupted: wall clock, retry exhaustion, or abort without a submit."""
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        reason: str = "timeout",
+        latency_ms: int | None = None,
+        provider: str = "",
+        model: str = "",
+        usage: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.reason = reason
+        self.latency_ms = latency_ms
+        self.provider = provider
+        self.model = model
+        self.usage = dict(usage or {})
+
 
 @dataclass(frozen=True)
 class PiRpcResult:
@@ -130,6 +147,20 @@ def _add_usage(total: dict[str, Any], current: dict[str, Any]) -> None:
         "cost",
     ):
         total[key] += current[key]
+
+
+def _usage_total(messages: list[dict[str, Any]]) -> dict[str, Any]:
+    total = {
+        "input": 0,
+        "output": 0,
+        "cache_read": 0,
+        "cache_write": 0,
+        "total_tokens": 0,
+        "cost": 0.0,
+    }
+    for message in messages:
+        _add_usage(total, _usage(message))
+    return total
 
 
 def _stderr_tail(stream) -> str:
@@ -382,6 +413,7 @@ def run_pi_rpc(
     system_prompt: str = SYSTEM_PROMPT,
     environment: dict[str, str] | None = None,
     timeout_seconds: float = 180,
+    on_event: Callable[[dict[str, Any]], None] | None = None,
 ) -> PiRpcResult:
     """Run one ephemeral Pi turn with only the three controlled case tools."""
     target = resolve_pi_runtime(
@@ -459,6 +491,32 @@ def run_pi_rpc(
     settled = False
     aborted_after_submit = False
     abort_sent = False
+    first_activity_sent = False
+
+    def emit(event: dict[str, Any]) -> None:
+        # The observer is host progress plumbing; it must never break the RPC loop.
+        if on_event is None:
+            return
+        try:
+            on_event(event)
+        except Exception:
+            pass
+
+    def note_first_activity(event_type: str) -> None:
+        nonlocal first_activity_sent
+        if first_activity_sent or event_type not in {
+            "agent_start",
+            "turn_start",
+            "message_start",
+            "message_end",
+            "tool_execution_start",
+            "tool_execution_update",
+            "tool_execution_end",
+        }:
+            return
+        first_activity_sent = True
+        emit({"type": "first_agent_activity", "elapsed_ms": round((monotonic() - started) * 1000)})
+
     with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as stderr:
         try:
             process = subprocess.Popen(
@@ -474,6 +532,7 @@ def run_pi_rpc(
             raise PiOptimizerInterventionError("Pi RPC could not be started.") from exc
 
         try:
+            emit({"type": "process_spawn", "spawn_ms": round((monotonic() - started) * 1000)})
             assert process.stdin is not None
             assert process.stdout is not None
 
@@ -497,6 +556,8 @@ def run_pi_rpc(
 
             def handle(event: dict[str, Any]) -> None:
                 nonlocal settled, aborted_after_submit
+                emit(event)
+                note_first_activity(str(event.get("type") or ""))
                 if (
                     event.get("type") == "response"
                     and event.get("id") == "investigate"
@@ -576,11 +637,21 @@ def run_pi_rpc(
                 detail = _stderr_tail(stderr)
                 if process.poll() is None:
                     raise PiRpcTimeout(
-                        "Pi intervention timed out before the agent settled."
+                        "Pi intervention timed out before the agent settled.",
+                        reason="timeout",
+                        latency_ms=round((monotonic() - started) * 1000),
+                        provider=provider,
+                        model=model,
+                        usage=_usage_total(assistant_messages),
                     )
                 raise PiRpcTimeout(
                     "Pi RPC exited before completing the intervention"
-                    + (f": {detail}" if detail else ".")
+                    + (f": {detail}" if detail else "."),
+                    reason="exited",
+                    latency_ms=round((monotonic() - started) * 1000),
+                    provider=provider,
+                    model=model,
+                    usage=_usage_total(assistant_messages),
                 )
             if not assistant_messages:
                 raise PiOptimizerInterventionError(
@@ -590,7 +661,12 @@ def run_pi_rpc(
                 last_reason = assistant_messages[-1].get("stopReason")
                 if last_reason in {"error", "aborted", "length"}:
                     raise PiRpcTimeout(
-                        "Pi intervention ended without a complete agent turn."
+                        "Pi intervention ended without a complete agent turn.",
+                        reason="interrupted",
+                        latency_ms=round((monotonic() - started) * 1000),
+                        provider=provider,
+                        model=model,
+                        usage=_usage_total(assistant_messages),
                     )
             meta = next(
                 (
@@ -607,16 +683,7 @@ def run_pi_rpc(
                 raise PiOptimizerInterventionError(
                     "Pi returned incomplete provider/model metadata."
                 )
-            usage = {
-                "input": 0,
-                "output": 0,
-                "cache_read": 0,
-                "cache_write": 0,
-                "total_tokens": 0,
-                "cost": 0.0,
-            }
-            for message in assistant_messages:
-                _add_usage(usage, _usage(message))
+            usage = _usage_total(assistant_messages)
             return PiRpcResult(
                 text="\n".join(
                     text
