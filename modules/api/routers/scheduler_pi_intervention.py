@@ -189,6 +189,7 @@ def apply_reconciliation_investigation(
                 confirmed_confirmation_ids=command.confirmed_confirmation_ids,
                 authorized_sacrifice_aliases=command.authorized_sacrifice_aliases,
                 note=command.note,
+                scope=command.scope,
             )
             if record_update_error:
                 apply_warnings.append(

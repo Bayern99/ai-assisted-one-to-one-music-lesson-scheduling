@@ -23,11 +23,13 @@ interface ResolutionPanelProps {
   activeDay: number
   disabled: boolean
   expanded?: boolean
+  isReadingExpanded?: boolean
   issues: SchedulerSession['issues']
   onDayChange: (day: number) => void
   onDragEnd: () => void
   onDragStart: (issue: Issue) => void
   onSelect: (issue: Issue, context?: ResolutionSelectionContext) => void
+  onToggleReadingExpanded?: () => void
   onUseOption: (issue: Issue, target: MoveTarget, context?: ResolutionSelectionContext) => void
   selectedIssueId: string | null
   selectedProposal: MoveTarget | null
@@ -148,6 +150,8 @@ export const ResolutionPanel = forwardRef<HTMLElement, ResolutionPanelProps>(fun
             activeDay={props.activeDay}
             disabled={props.disabled || waitingMutation.isPending || leverageMutation.isPending || !advice.pi_available}
             investigation={advice.pi_reconciliation?.day === props.activeDay ? advice.pi_reconciliation : null}
+            isReadingExpanded={props.isReadingExpanded}
+            onToggleReadingExpanded={props.onToggleReadingExpanded}
             piRuntime={advice.pi_runtime}
             workspaceVersion={props.workspaceVersion}
           /> : null}

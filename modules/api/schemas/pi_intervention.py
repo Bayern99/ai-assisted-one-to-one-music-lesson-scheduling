@@ -55,7 +55,8 @@ class ReconciliationDecisionRequest(_StrictModel):
 
 class ReconciliationApplyRequest(_StrictModel):
     expected_version: str
-    simulation_id: str = Field(min_length=1)
+    simulation_id: str = Field(default="", max_length=64)
+    scope: Literal["option", "common"] = "option"
     confirmed_teacher_aliases: list[str] = Field(default_factory=list, max_length=16)
     confirmed_confirmation_ids: list[str] = Field(default_factory=list, max_length=16)
     authorized_sacrifice_aliases: list[str] = Field(default_factory=list, max_length=24)

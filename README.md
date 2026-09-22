@@ -48,6 +48,8 @@ On `/schedule/resolve` the operator can start a whole-day investigation. Pi runs
 2. **Simulate** complete room-change packages against the Python sandbox.
 3. **Submit one brief** — a recommended package plus disclosed costs (second room, a named sacrifice, a time-change exception if you authorised it).
 
+Python projects the brief into a **Decision Brief**: shared moves listed once, A/B cards show only the diffs, and a continue turn is a same-day revision (what the last instruction actually changed). Phrases like “leave this teacher alone” / “may change time” become hard constraints before the next sandbox run; unmatched goal text stays a preference. The PI Reconciliation panel is Chinese by default with an English switch; the rest of the app stays English.
+
 Scheduled times stay fixed unless the operator listed a time-change exception. Pi cannot assign, move, unassign, Stage, or Finalize. Applying a brief still goes through Python validation; the human confirms teachers and presses apply.
 
 A long investigation is not a black box: the panel shows the run’s phases (`investigating`, `saving_reconciliation`), elapsed time, provider retries, and tool-call / simulation counts from a bounded operation event stream, and it re-attaches to a running operation after a page reload.

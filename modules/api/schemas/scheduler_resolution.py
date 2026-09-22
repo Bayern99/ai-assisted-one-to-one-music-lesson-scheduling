@@ -185,6 +185,11 @@ class ReconciliationPendingDecisionView(_StrictModel):
     teacher_alias: Optional[str] = None
 
 
+class ReconciliationUnknownView(_StrictModel):
+    subject: str = ""
+    note: str = ""
+
+
 class ReconciliationRemainingIssue(_StrictModel):
     subject_alias: str
     reason: str = ""
@@ -201,6 +206,9 @@ class ReconciliationBrief(_StrictModel):
     primary_simulation_id: Optional[str] = None
     fallback_simulation_id: Optional[str] = None
     title: str
+    focus_question: str = ""
+    agent_note: str = ""
+    unknowns: list[ReconciliationUnknownView] = Field(default_factory=list)
     rationale: str
     trade_offs: list[str] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
@@ -251,6 +259,83 @@ class ReconciliationApplyResult(_StrictModel):
     applied_at: str = ""
 
 
+class DecisionBriefFocus(_StrictModel):
+    question: str = ""
+    status: Literal["ready", "choice", "missing_info", "no_package"] = "ready"
+
+
+class DecisionBriefOption(_StrictModel):
+    option_id: str
+    source: str
+    simulation_id: str
+    changes: list[ReconciliationChangeRow] = Field(default_factory=list)
+    diffs: list[ReconciliationChangeRow] = Field(default_factory=list)
+    metrics: dict = Field(default_factory=dict)
+    required_teacher_aliases: list[str] = Field(default_factory=list)
+    sacrifice_aliases: list[str] = Field(default_factory=list)
+
+
+class DecisionBriefCommon(_StrictModel):
+    changes: list[ReconciliationChangeRow] = Field(default_factory=list)
+    required_teacher_aliases: list[str] = Field(default_factory=list)
+    sacrifice_aliases: list[str] = Field(default_factory=list)
+
+
+class DecisionBriefTeacherRow(_StrictModel):
+    start: str = ""
+    end: str = ""
+    room: Optional[str] = None
+    label: str = ""
+    state: str = "unchanged"
+    variants: dict[str, Optional[str]] = Field(default_factory=dict)
+
+
+class DecisionBriefTeacherDay(_StrictModel):
+    teacher: str
+    rows: list[DecisionBriefTeacherRow] = Field(default_factory=list)
+
+
+class DecisionBriefRoomBusy(_StrictModel):
+    start: str = ""
+    end: str = ""
+    label: str = ""
+
+
+class DecisionBriefRoomView(_StrictModel):
+    room: str
+    accepts: list[str] = Field(default_factory=list)
+    busy: list[DecisionBriefRoomBusy] = Field(default_factory=list)
+
+
+class DecisionBriefComparisonRow(_StrictModel):
+    label: str
+    values: list[str] = Field(default_factory=list)
+
+
+class DecisionBriefRevisionEffect(_StrictModel):
+    code: str = ""
+    text: str = ""
+
+
+class DecisionBriefRevision(_StrictModel):
+    instruction: str = ""
+    protect_teachers: list[str] = Field(default_factory=list)
+    allow_time_change_teachers: list[str] = Field(default_factory=list)
+    effects: list[DecisionBriefRevisionEffect] = Field(default_factory=list)
+
+
+class ReconciliationDecisionBrief(_StrictModel):
+    focus: DecisionBriefFocus
+    options: list[DecisionBriefOption] = Field(default_factory=list)
+    common: Optional[DecisionBriefCommon] = None
+    comparison: list[DecisionBriefComparisonRow] = Field(default_factory=list)
+    revision: Optional[DecisionBriefRevision] = None
+    teacher_days: list[DecisionBriefTeacherDay] = Field(default_factory=list)
+    room_views: list[DecisionBriefRoomView] = Field(default_factory=list)
+    unknowns: list[ReconciliationUnknownView] = Field(default_factory=list)
+    agent_note: str = ""
+
+
 class ReconciliationInvestigationView(_StrictModel):
     investigation_id: str
     snapshot_id: str
@@ -266,6 +351,7 @@ class ReconciliationInvestigationView(_StrictModel):
     coverage: dict
     simulations: list[ReconciliationSimulation] = Field(default_factory=list)
     brief: Optional[ReconciliationBrief] = None
+    decision_brief: Optional[ReconciliationDecisionBrief] = None
     task: Optional[ReconciliationTaskPremises] = None
     teacher_display: dict[str, str] = Field(default_factory=dict)
     apply_result: Optional[ReconciliationApplyResult] = None

@@ -137,6 +137,30 @@ export function ResolvePage() {
       return { ...widths, [workspaceMode]: value }
     })
   }
+  const [isReadingExpanded, setIsReadingExpanded] = useState(() => {
+    return workspaceMode === 'reconciliation' && queueWidth >= 600
+  })
+  const previousQueueWidth = useRef(queueWidth < 600 ? queueWidth : 420)
+
+  function toggleReadingExpanded() {
+    if (isReadingExpanded) {
+      const restored = previousQueueWidth.current < 600 ? previousQueueWidth.current : 420
+      setQueueWidth(restored)
+      window.localStorage.setItem(`${QUEUE_WIDTH_KEY}.${workspaceMode}`, String(restored))
+      setIsReadingExpanded(false)
+    } else {
+      if (queueWidth < 600) {
+        previousQueueWidth.current = queueWidth
+      }
+      const target = Math.min(QUEUE_MAX, Math.max(620, Math.min(680, window.innerWidth - 480)))
+      setQueueWidth(target)
+      window.localStorage.setItem(`${QUEUE_WIDTH_KEY}.${workspaceMode}`, String(target))
+      setIsReadingExpanded(true)
+      if (selected || selectedTeacherKey || selectedIssueId) {
+        closeInspector()
+      }
+    }
+  }
   const errorRef = useRef<HTMLElement>(null)
   const issueQueueRef = useRef<HTMLElement>(null)
   const focusIssueOnClose = useRef(false)
@@ -391,9 +415,11 @@ export function ResolvePage() {
       next.set('workspace', 'reconciliation')
       if (!selectedIssue) next.delete('assignment')
       if (!selectedIssue && firstIssueDay) next.set('day', String(firstIssueDay))
+      setIsReadingExpanded(queueWidths.reconciliation >= 600)
     } else {
       setPresentationMode('lessons')
       next.set('workspace', 'schedule')
+      setIsReadingExpanded(false)
     }
     setSearchParams(next)
   }
@@ -428,6 +454,9 @@ export function ResolvePage() {
       const next = Math.min(QUEUE_MAX, Math.max(QUEUE_MIN, initial + (up.clientX - origin)))
       setQueueWidth(next)
       window.localStorage.setItem(persistKey, String(next))
+      if (workspaceMode === 'reconciliation') {
+        setIsReadingExpanded(next >= 600)
+      }
     }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
@@ -631,7 +660,7 @@ export function ResolvePage() {
       {waitingMutation.error ? <section className={styles.commandError} role="alert"><strong>Waiting status not saved</strong><p>{waitingMutation.error.message}</p></section> : null}
       {requestedIdIsStale ? <p className={styles.staleSelection} role="status">Assignment {requestedId} is no longer available. Select a current assignment.</p> : null}
       <div
-        className={`${styles.resolveWorkspace} ${workspaceMode === 'reconciliation' ? styles.reconciliationMode : ''} ${showInspector ? styles.reconciliationWithInspector : ''}`}
+        className={`${styles.resolveWorkspace} ${workspaceMode === 'reconciliation' ? styles.reconciliationMode : ''} ${isReadingExpanded ? styles.expandedReadingMode : ''} ${showInspector ? styles.reconciliationWithInspector : ''}`}
         data-testid="resolve-workspace"
         style={{ '--resolve-queue-width': `${queueWidth}px` } as CSSProperties}
       >
@@ -639,12 +668,14 @@ export function ResolvePage() {
           activeDay={activeDay}
           disabled={scheduleMutationPending || versionConflict}
           expanded={workspaceMode === 'reconciliation'}
+          isReadingExpanded={isReadingExpanded}
           issues={session.issues}
           key={workspaceMode}
           onDayChange={changeDay}
           onDragEnd={() => setDraggingIssue(null)}
           onDragStart={beginIssueDrag}
           onSelect={selectIssue}
+          onToggleReadingExpanded={workspaceMode === 'reconciliation' ? toggleReadingExpanded : undefined}
           onUseOption={useResolutionOption}
           ref={issueQueueRef}
           selectedProposal={activeIssueProposal}

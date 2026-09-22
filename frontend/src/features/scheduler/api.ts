@@ -254,6 +254,7 @@ export function applyReconciliation(
   authorizedSacrificeAliases: string[] = [],
   note = '',
   confirmedConfirmationIds: string[] = [],
+  scope: 'option' | 'common' = 'option',
 ) {
   return apiRequest<ResolutionAdvice>(
     `/api/scheduler/resolution/reconciliation/${encodeURIComponent(investigationId)}/apply`,
@@ -262,6 +263,7 @@ export function applyReconciliation(
       body: JSON.stringify({
         expected_version: expectedVersion,
         simulation_id: simulationId,
+        scope,
         confirmed_teacher_aliases: confirmedTeacherAliases,
         confirmed_confirmation_ids: confirmedConfirmationIds,
         authorized_sacrifice_aliases: authorizedSacrificeAliases,

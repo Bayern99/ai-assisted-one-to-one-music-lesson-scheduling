@@ -1223,6 +1223,147 @@ export interface components {
             /** Round Committed */
             round_committed: boolean;
         };
+        /** DecisionBriefCommon */
+        DecisionBriefCommon: {
+            /** Changes */
+            changes?: components["schemas"]["ReconciliationChangeRow"][];
+            /** Required Teacher Aliases */
+            required_teacher_aliases?: string[];
+            /** Sacrifice Aliases */
+            sacrifice_aliases?: string[];
+        };
+        /** DecisionBriefComparisonRow */
+        DecisionBriefComparisonRow: {
+            /** Label */
+            label: string;
+            /** Values */
+            values?: string[];
+        };
+        /** DecisionBriefFocus */
+        DecisionBriefFocus: {
+            /**
+             * Question
+             * @default
+             */
+            question: string;
+            /**
+             * Status
+             * @default ready
+             * @enum {string}
+             */
+            status: "ready" | "choice" | "missing_info" | "no_package";
+        };
+        /** DecisionBriefOption */
+        DecisionBriefOption: {
+            /** Changes */
+            changes?: components["schemas"]["ReconciliationChangeRow"][];
+            /** Diffs */
+            diffs?: components["schemas"]["ReconciliationChangeRow"][];
+            /** Metrics */
+            metrics?: {
+                [key: string]: unknown;
+            };
+            /** Option Id */
+            option_id: string;
+            /** Required Teacher Aliases */
+            required_teacher_aliases?: string[];
+            /** Sacrifice Aliases */
+            sacrifice_aliases?: string[];
+            /** Simulation Id */
+            simulation_id: string;
+            /** Source */
+            source: string;
+        };
+        /** DecisionBriefRevision */
+        DecisionBriefRevision: {
+            /** Allow Time Change Teachers */
+            allow_time_change_teachers?: string[];
+            /** Effects */
+            effects?: components["schemas"]["DecisionBriefRevisionEffect"][];
+            /**
+             * Instruction
+             * @default
+             */
+            instruction: string;
+            /** Protect Teachers */
+            protect_teachers?: string[];
+        };
+        /** DecisionBriefRevisionEffect */
+        DecisionBriefRevisionEffect: {
+            /**
+             * Code
+             * @default
+             */
+            code: string;
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+        };
+        /** DecisionBriefRoomBusy */
+        DecisionBriefRoomBusy: {
+            /**
+             * End
+             * @default
+             */
+            end: string;
+            /**
+             * Label
+             * @default
+             */
+            label: string;
+            /**
+             * Start
+             * @default
+             */
+            start: string;
+        };
+        /** DecisionBriefRoomView */
+        DecisionBriefRoomView: {
+            /** Accepts */
+            accepts?: string[];
+            /** Busy */
+            busy?: components["schemas"]["DecisionBriefRoomBusy"][];
+            /** Room */
+            room: string;
+        };
+        /** DecisionBriefTeacherDay */
+        DecisionBriefTeacherDay: {
+            /** Rows */
+            rows?: components["schemas"]["DecisionBriefTeacherRow"][];
+            /** Teacher */
+            teacher: string;
+        };
+        /** DecisionBriefTeacherRow */
+        DecisionBriefTeacherRow: {
+            /**
+             * End
+             * @default
+             */
+            end: string;
+            /**
+             * Label
+             * @default
+             */
+            label: string;
+            /** Room */
+            room?: string | null;
+            /**
+             * Start
+             * @default
+             */
+            start: string;
+            /**
+             * State
+             * @default unchanged
+             */
+            state: string;
+            /** Variants */
+            variants?: {
+                [key: string]: string | null;
+            };
+        };
         /** DraftState */
         DraftState: {
             /**
@@ -1758,7 +1899,16 @@ export interface components {
              * @default
              */
             note: string;
-            /** Simulation Id */
+            /**
+             * Scope
+             * @default option
+             * @enum {string}
+             */
+            scope: "option" | "common";
+            /**
+             * Simulation Id
+             * @default
+             */
             simulation_id: string;
         };
         /** ReconciliationApplyResult */
@@ -1788,6 +1938,11 @@ export interface components {
         };
         /** ReconciliationBrief */
         ReconciliationBrief: {
+            /**
+             * Agent Note
+             * @default
+             */
+            agent_note: string;
             /** Brief Id */
             brief_id: string;
             /** Coverage */
@@ -1802,6 +1957,11 @@ export interface components {
             decision_note?: string | null;
             /** Fallback Simulation Id */
             fallback_simulation_id?: string | null;
+            /**
+             * Focus Question
+             * @default
+             */
+            focus_question: string;
             /** Investigation Id */
             investigation_id: string;
             /** Limitations */
@@ -1842,6 +2002,8 @@ export interface components {
             title: string;
             /** Trade Offs */
             trade_offs?: string[];
+            /** Unknowns */
+            unknowns?: components["schemas"]["ReconciliationUnknownView"][];
         };
         /** ReconciliationChangeRow */
         ReconciliationChangeRow: {
@@ -1891,6 +2053,27 @@ export interface components {
              */
             time_changed: boolean;
             to?: components["schemas"]["ReconciliationPlacement"] | null;
+        };
+        /** ReconciliationDecisionBrief */
+        ReconciliationDecisionBrief: {
+            /**
+             * Agent Note
+             * @default
+             */
+            agent_note: string;
+            common?: components["schemas"]["DecisionBriefCommon"] | null;
+            /** Comparison */
+            comparison?: components["schemas"]["DecisionBriefComparisonRow"][];
+            focus: components["schemas"]["DecisionBriefFocus"];
+            /** Options */
+            options?: components["schemas"]["DecisionBriefOption"][];
+            revision?: components["schemas"]["DecisionBriefRevision"] | null;
+            /** Room Views */
+            room_views?: components["schemas"]["DecisionBriefRoomView"][];
+            /** Teacher Days */
+            teacher_days?: components["schemas"]["DecisionBriefTeacherDay"][];
+            /** Unknowns */
+            unknowns?: components["schemas"]["ReconciliationUnknownView"][];
         };
         /** ReconciliationDecisionRequest */
         ReconciliationDecisionRequest: {
@@ -1951,6 +2134,7 @@ export interface components {
             created_at: string;
             /** Day */
             day?: number | null;
+            decision_brief?: components["schemas"]["ReconciliationDecisionBrief"] | null;
             /** Investigation Id */
             investigation_id: string;
             /** Scope Id */
@@ -2202,6 +2386,19 @@ export interface components {
             params: {
                 [key: string]: unknown;
             };
+        };
+        /** ReconciliationUnknownView */
+        ReconciliationUnknownView: {
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /**
+             * Subject
+             * @default
+             */
+            subject: string;
         };
         /** ReservationClassification */
         ReservationClassification: {

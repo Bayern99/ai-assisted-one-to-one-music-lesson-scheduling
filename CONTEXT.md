@@ -1,6 +1,6 @@
 # AI-Assisted One-to-One Music Lesson Scheduling
 
-Desktop workspace for auditable one-to-one music-instruction scheduling. This glossary is the occupancy, Step 4, and rules-layer judgement language for the 4.7–4.8.1 work. It is not an implementation spec.
+Desktop workspace for auditable one-to-one music-instruction scheduling. This glossary is the occupancy, Step 4, and rules-layer judgement language for the 4.7–4.8.2 work. It is not an implementation spec.
 
 ## Language
 
@@ -39,3 +39,23 @@ _Avoid_: Treating Stage as Finalize; using committed bookings as the live PI loc
 **Rules impact**:
 What saving the canonical Rules document does and does not change. A save governs the next Run Optimizer and every Step 4 validation (room legality, priorities, time-change pool, operating window) but never rewrites existing layers by itself: the current draft keeps its placements until the Optimizer re-runs, and a staged or finalized schedule keeps the rules it was validated under until the operator re-Stages and re-Finalizes.
 _Avoid_: Reading "saved" as "applied to the current draft"; assuming a save retroactively re-validates staged or finalized output
+
+**Decision Brief**:
+Python projection of one persisted whole-day investigation: options, shared common moves, comparison rows that exist only where A and B disagree, same-day revision effects, and the teacher/room context those options actually touch. Model prose is confined to `focus.question`, `unknowns`, and `agent_note`.
+_Avoid_: Using Pi's note as the comparison; dumping both options' full change lists; treating an empty `diffs` as "show all changes"
+
+**Common part**:
+The intersection of two feasible options' normalized moves. Listed once; applied once (`scope=common`). Option cards then show only the remainder (`diffs`).
+_Avoid_: Asking the operator to authorize the same shared move twice
+
+**Revision**:
+A continue turn on the same day, not a new case. Python diffs this investigation against the previous same-day record and reports what the new hard constraints did to the feasible set and the common part.
+_Avoid_: Reading continue as "start over"; inventing revision copy in the client
+
+**Operator constraint**:
+Protect / time-change phrasing extracted clause-by-clause from the operator message into `protect_teachers` / `allow_time_change_teachers`, then validated by Python before simulation. Unmatched goal text stays a preference.
+_Avoid_: Treating the whole goal string as a lock; protecting every named teacher in the sentence; sending constraints only as prompt flavour
+
+**PI Reconciliation locale**:
+Chinese/English chrome for the PI Reconciliation panel only (`zh` default, persisted). Known server labels and revision codes are localized in the client; model questions stay as written. The rest of the dashboard is already English.
+_Avoid_: Whole-app i18n; translating `focus.question` / rationale; assuming English is the panel default

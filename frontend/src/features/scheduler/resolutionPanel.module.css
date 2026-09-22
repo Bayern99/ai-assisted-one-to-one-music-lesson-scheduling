@@ -338,3 +338,526 @@
   transition: transform var(--motion-hover) var(--motion-emphasis), background var(--motion-hover) var(--motion);
 }
 button:hover > .ctaIcon { transform: translate(2px, -1px) scale(1.06); }
+
+/* Double-bezel concentric header & reading expansion control */
+.piHeadingMainRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.piHeadingActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.expandReadingButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--bezel-shell-border);
+  border-radius: var(--radius-pill);
+  font-size: calc(10.5px + var(--text-size-offset));
+  color: var(--muted-readable);
+  background: var(--raised);
+  box-shadow: var(--bezel-inset-highlight);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--motion-hover) var(--motion),
+              background var(--motion-hover) var(--motion),
+              border-color var(--motion-hover) var(--motion),
+              transform var(--motion-press) var(--motion),
+              box-shadow var(--motion-hover) var(--motion);
+}
+
+.expandReadingButton:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--structure-emphasis);
+  background: var(--raised);
+  box-shadow: var(--elevation-rest), var(--bezel-inset-highlight);
+}
+
+.expandReadingButton:active:not(:disabled) {
+  transform: scale(var(--press-scale));
+}
+
+.expandReadingButton[aria-pressed='true'] {
+  color: var(--on-accent);
+  border-color: var(--ink);
+  background: var(--ink);
+  box-shadow: var(--elevation-rest);
+}
+
+.expandReadingIcon {
+  font-size: calc(12px + var(--text-size-offset));
+  line-height: 1;
+}
+
+/* Proposal Structure */
+.proposalHeader {
+  display: grid;
+  gap: 4px;
+}
+
+.proposalTitleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.proposalBadges {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.variantBadge {
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  color: var(--accent-readable);
+  background: color-mix(in srgb, var(--accent-soft) 70%, var(--raised));
+  box-shadow: var(--bezel-inset-highlight);
+  font-family: var(--font-mono);
+  font-size: calc(10.5px + var(--text-size-offset));
+}
+
+.interruptedBadge {
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  color: var(--warning-readable);
+  background: var(--warning-soft);
+  box-shadow: var(--bezel-inset-highlight);
+  font-family: var(--font-mono);
+  font-size: calc(10.5px + var(--text-size-offset));
+}
+
+.interruptedCallout {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--warning-readable);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--warning-soft);
+}
+
+.interruptedCallout strong {
+  display: block;
+  font-size: calc(11px + var(--text-size-offset));
+  color: var(--warning-readable);
+}
+
+.interruptedCallout p {
+  margin: 3px 0 0;
+  font-size: calc(10.5px + var(--text-size-offset));
+  color: var(--muted-readable);
+  line-height: 1.4;
+}
+
+.metricHeadline {
+  color: var(--muted-readable);
+  font-family: var(--font-mono);
+  font-size: calc(11px + var(--text-size-offset));
+}
+
+.proposalSection {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--structure);
+}
+
+.sectionHeading {
+  margin: 0 0 6px;
+  font-family: var(--font-mono);
+  font-size: calc(10.5px + var(--text-size-offset));
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted-readable);
+}
+
+.rationaleBody {
+  margin: 0;
+  color: var(--ink);
+  font-size: calc(11.5px + var(--text-size-offset));
+  line-height: 1.5;
+}
+
+.tradeOffsList {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  color: var(--muted-readable);
+  font-size: calc(11px + var(--text-size-offset));
+  line-height: 1.4;
+}
+
+.tradeOffsList li + li {
+  margin-top: 3px;
+}
+
+.tradeOffDetail {
+  margin: 6px 0 0;
+  color: var(--muted-readable);
+  font-size: calc(10.5px + var(--text-size-offset));
+}
+
+.exceptionNotice {
+  margin: 6px 0 0;
+  padding: 6px 8px;
+  border-left: 2px solid var(--accent);
+  background: var(--warning-soft);
+  color: var(--warning-readable);
+  font-size: calc(10.5px + var(--text-size-offset));
+}
+
+.pendingList {
+  display: grid;
+  gap: 6px;
+}
+
+.pendingItems {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.pendingItems li {
+  padding: 7px 9px;
+  border: 1px solid var(--bezel-core-border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  display: grid;
+  gap: 3px;
+}
+
+.pendingItems li strong {
+  font-size: calc(11.5px + var(--text-size-offset));
+}
+
+.pendingDetail {
+  color: var(--muted-readable);
+  font-size: calc(10.5px + var(--text-size-offset));
+  line-height: 1.4;
+}
+
+.decisionSubGroup {
+  margin-top: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.decisionSubHeading {
+  color: var(--muted-readable);
+  font-size: calc(10.5px + var(--text-size-offset));
+}
+
+.checkboxGroup {
+  display: grid;
+  gap: 6px;
+}
+
+.decisionLabel {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--ink);
+  font-size: calc(11px + var(--text-size-offset));
+  cursor: pointer;
+}
+
+.decisionLabel input {
+  margin-top: 2px;
+  accent-color: var(--accent);
+}
+
+.remainingGroup {
+  margin-top: 10px;
+}
+
+.limitationsNote {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted-readable);
+  font-size: calc(10px + var(--text-size-offset));
+}
+
+/* Discussion / Next Turn section: directly following proposal decisions */
+.piTalkProposal,
+.piTalkInitial {
+  margin-top: 14px;
+  padding: 10px 11px 12px;
+  border: 1px solid var(--bezel-core-border);
+  border-radius: var(--radius-core);
+  background: var(--surface-subtle);
+  box-shadow: var(--bezel-inset-highlight);
+}
+
+.piTalkGuidance {
+  margin: 0 0 8px;
+  color: var(--muted-readable);
+  font-size: calc(10.5px + var(--text-size-offset));
+  line-height: 1.4;
+}
+
+.lastInstruction {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted-readable);
+  font-size: calc(10.5px + var(--text-size-offset));
+}
+
+.talkInputRow {
+  display: grid;
+  gap: 8px;
+}
+
+.talkInputRow input {
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 9px;
+  border: 1px solid var(--bezel-shell-border);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  background: var(--raised);
+  font-size: calc(11px + var(--text-size-offset));
+  box-shadow: var(--bezel-inset-shade);
+}
+
+.talkInputRow button {
+  width: 100%;
+  min-height: 32px;
+}
+
+.actionButtonsRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.actionButtonsRow button:first-child {
+  flex: 1 1 auto;
+}
+
+.variantButtonsRow {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* ===== PI 排课调查 decision workspace ===== */
+/* Slot 1 — 当前决定: status chip + the strongest headline on the page. */
+.focusBlock { display: grid; gap: 6px; margin-top: 10px; }
+.statusChip {
+  justify-self: start;
+  padding: 3px 9px;
+  border: 1px solid var(--bezel-shell-border);
+  border-radius: var(--radius-pill);
+  color: var(--muted-readable);
+  background: var(--raised);
+  box-shadow: var(--bezel-inset-highlight);
+  font-size: calc(11px + var(--text-size-offset));
+}
+.statusChip[data-status='ready'] {
+  color: var(--accent-readable);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--structure));
+  background: color-mix(in srgb, var(--accent-soft) 65%, var(--raised));
+}
+.statusChip[data-status='choice'] {
+  color: var(--warning-readable);
+  border-color: color-mix(in srgb, var(--warning-readable) 45%, var(--structure));
+  background: var(--warning-soft);
+}
+.statusChip[data-status='missing_info'],
+.statusChip[data-status='no_package'] {
+  color: var(--error-readable);
+  border-color: color-mix(in srgb, var(--error-readable) 40%, var(--structure));
+  background: var(--error-soft);
+}
+.focusQuestion {
+  margin: 0;
+  font-size: calc(16px + var(--text-size-offset));
+  font-weight: 650;
+  letter-spacing: -.01em;
+  line-height: 1.35;
+}
+
+/* Slots 2–4 band: 相关背景 left, 方案比较 right; stacks on narrow viewports. */
+.decisionBand {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 14px;
+  align-items: start;
+  margin-top: 12px;
+}
+@media (max-width: 760px) {
+  .decisionBand { grid-template-columns: minmax(0, 1fr); }
+}
+.slotHeading {
+  margin: 0 0 6px;
+  font-family: inherit;
+  font-size: calc(12.5px + var(--text-size-offset));
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+}
+.contextColumn { min-width: 0; display: grid; gap: 10px; align-content: start; }
+.teacherDay { display: grid; gap: 4px; }
+.teacherDayName { font-size: calc(12px + var(--text-size-offset)); }
+.teacherDayRows { margin: 0; padding: 0; list-style: none; display: grid; gap: 3px; }
+.teacherDayRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 7px;
+  border: 1px solid var(--structure);
+  border-radius: var(--radius-sm);
+  color: var(--muted-readable);
+  background: transparent;
+  font-size: calc(11px + var(--text-size-offset));
+}
+.teacherDayRow[data-state='placed'],
+.teacherDayRow[data-state='moved'] {
+  color: var(--ink);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--structure));
+  background: color-mix(in srgb, var(--accent-soft) 55%, transparent);
+}
+.teacherDayRow[data-state='unplaced'] { border-style: dashed; }
+.teacherDayRow[data-state='withdrawn'] { opacity: .7; }
+.teacherDayTime { font-family: var(--font-mono); }
+.teacherDayRoom { font-weight: 600; color: inherit; }
+.teacherDayLabel { color: var(--muted-readable); }
+.variantNote {
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  color: var(--accent-readable);
+  background: color-mix(in srgb, var(--accent-soft) 70%, var(--raised));
+  font-size: calc(10px + var(--text-size-offset));
+}
+.roomChips { display: flex; flex-wrap: wrap; gap: 6px; }
+.roomChip {
+  display: grid;
+  gap: 2px;
+  padding: 6px 9px;
+  border: 1px solid var(--bezel-shell-border);
+  border-radius: var(--radius-sm);
+  background: var(--raised);
+  box-shadow: var(--bezel-inset-highlight);
+  font-size: calc(11px + var(--text-size-offset));
+}
+.roomChip small { color: var(--muted-readable); font-size: calc(10.5px + var(--text-size-offset)); }
+.unknownList { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.unknownList li { color: var(--warning-readable); font-size: calc(11px + var(--text-size-offset)); }
+.priorNote { color: var(--muted-readable); font-size: calc(10.5px + var(--text-size-offset)); }
+
+/* Slot 3 — 方案比较. Cards only for the genuinely independent objects. */
+.optionsColumn { min-width: 0; display: grid; gap: 10px; align-content: start; }
+.compareTable { width: 100%; border-collapse: collapse; font-size: calc(11.5px + var(--text-size-offset)); }
+.compareTable th,
+.compareTable td { padding: 5px 8px; border-bottom: 1px solid var(--structure); text-align: left; }
+.compareTable thead th { color: var(--muted-readable); font-weight: 600; }
+.compareTable tbody td:first-child { color: var(--muted-readable); }
+.compareTable th + th,
+.compareTable td + td { text-align: right; font-family: var(--font-mono); }
+.optionBlock {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--bezel-core-border);
+  border-radius: var(--radius-core);
+  background: var(--raised);
+  box-shadow: var(--elevation-rest), var(--bezel-inset-highlight);
+}
+.optionBlock[data-selected='true'] { border-color: color-mix(in srgb, var(--accent) 45%, var(--bezel-core-border)); }
+.optionHead { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: calc(13px + var(--text-size-offset)); font-weight: 650; }
+.optionHead input { accent-color: var(--accent); }
+.quietNote { margin: 0; color: var(--muted-readable); font-size: calc(11px + var(--text-size-offset)); line-height: 1.4; }
+
+/* Slot 4 — 共同部分, listed once with its own apply affordance. */
+.commonBlock {
+  display: grid;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--structure);
+}
+.commonActionRow { display: flex; justify-content: flex-end; }
+.commonActionRow button { min-height: 30px; padding-inline: 14px; }
+
+/* Slot 5 — 需要你确认. */
+.confirmSection {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--structure);
+}
+
+/* Slot 7 — 动作行: weakest visual weight on the page. */
+.decisionActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+.decisionActions input[type='text'] {
+  flex: 1 1 220px;
+  min-height: 30px;
+  padding: 5px 8px;
+  border: 1px solid var(--bezel-shell-border);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  background: var(--raised);
+}
+.decisionActionButtons { display: flex; gap: 6px; margin-left: auto; }
+.decisionActionButtons button {
+  min-height: 30px;
+  padding-inline: 14px;
+  border: 1px solid var(--bezel-shell-border);
+  border-radius: var(--radius-pill);
+  color: var(--muted-readable);
+  background: var(--raised);
+  box-shadow: var(--bezel-inset-highlight);
+}
+.decisionActionButtons button:first-child:not(:disabled) {
+  color: var(--on-accent);
+  border-color: var(--ink);
+  background: var(--ink);
+}
+.decisionActionButtons button:disabled { opacity: .45; }
+
+/* Evidence layer — collapsed 调查过程, technical detail only. */
+.evidenceBlock { margin-top: 12px; }
+.evidenceBlock > summary {
+  cursor: pointer;
+  color: var(--muted-readable);
+  font-size: calc(11px + var(--text-size-offset));
+}
+.evidenceBlock > summary::marker { color: var(--accent); }
+.evidenceBody {
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+  color: var(--muted-readable);
+  font-size: calc(11px + var(--text-size-offset));
+  line-height: 1.45;
+}
+.evidenceBody p { margin: 0; }
+.evidenceBody ul,
+.evidenceBody ol { margin: 0; padding-left: 18px; }
+.evidenceEvents li { font-family: var(--font-mono); font-size: calc(10.5px + var(--text-size-offset)); }
+.evidenceEvents li + li { margin-top: 2px; }
+
+.revisionBlock { margin-top: 10px; display: grid; gap: 6px; }
+.revisionBlock p, .revisionBlock li { margin: 0; font-size: calc(13px + var(--text-size-offset)); line-height: 1.45; }
+.revisionBlock ul { margin: 0; padding-left: 1.2em; }

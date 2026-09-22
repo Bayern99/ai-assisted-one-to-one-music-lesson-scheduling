@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { applyReconciliation, investigateReconciliation, schedulerSessionKey, type PiRuntime } from '../api'
-import { PiReconciliationPanel } from './PiReconciliationPanel'
+import { extractOperatorConstraints, PiReconciliationPanel } from './PiReconciliationPanel'
 
 vi.mock('../api', async () => {
   const actual = await vi.importActual<typeof import('../api')>('../api')
@@ -18,6 +18,7 @@ vi.mock('../api', async () => {
 
 type Investigation = NonNullable<Parameters<typeof PiReconciliationPanel>[0]['investigation']>
 type Simulation = Investigation['simulations'][number]
+type DecisionBrief = NonNullable<Investigation['decision_brief']>
 
 const changeRows = [
   {
@@ -70,6 +71,40 @@ const simulation: Simulation = {
   state_after: {},
 }
 
+const decisionBrief: DecisionBrief = {
+  focus: { question: '把 Instructor 0009 的区块换到 R2，好安置 Instructor 0008 吗？', status: 'ready' },
+  options: [
+    {
+      option_id: 'a',
+      source: 'primary',
+      simulation_id: 'sim-primary',
+      changes: changeRows,
+      diffs: changeRows,
+      metrics: { resolved_delta: 1, remaining_unresolved: 0, moved_assignments: 2, room_switches: 2, sacrificed_assignments: 0 },
+      required_teacher_aliases: [],
+      sacrifice_aliases: [],
+    },
+  ],
+  common: null,
+  comparison: [],
+  revision: null,
+  teacher_days: [
+    {
+      teacher: 'teacher-1',
+      rows: [{ start: '10:00', end: '11:00', room: 'R1', label: 'Demo: Alpha', state: 'placed', variants: {} }],
+    },
+    {
+      teacher: 'teacher-2',
+      rows: [{ start: '10:00', end: '11:00', room: 'R2', label: 'Bach: Anna', state: 'moved', variants: {} }],
+    },
+  ],
+  room_views: [
+    { room: 'CC407', accepts: ['Voice'], busy: [{ start: '14:00', end: '16:00', label: 'Choir' }] },
+  ],
+  unknowns: [],
+  agent_note: '',
+}
+
 function investigationWith(overrides: Partial<Investigation> = {}, simulationOverrides: Partial<Simulation> = {}): Investigation {
   const sim = { ...simulation, ...simulationOverrides }
   return {
@@ -109,17 +144,20 @@ function investigationWith(overrides: Partial<Investigation> = {}, simulationOve
       termination: 'recommendation_ready',
       primary_simulation_id: 'sim-primary',
       title: '换房后安置 A 的课',
+      focus_question: '把 Instructor 0009 的区块换到 R2，好安置 Instructor 0008 吗？',
       rationale: '把 B 的教师日区块移到 R2，R1 就能安置 A。',
       trade_offs: ['教师 B 当天换一次房。'],
       limitations: ['Searched only that day.'],
       coverage: { subjects_inspected: 1, subjects_total: 1, uninspected_count: 0, simulation_count: 1 },
       created_at: '2026-09-16T00:00:01+00:00',
+      agent_note: '',
       sacrifices: [],
       requires_sacrifice_authorization: false,
       same_day_time_change: false,
       pending_decisions: [],
       remaining_issues: [],
     },
+    decision_brief: decisionBrief,
     simulations: [sim],
     apply_result: null,
     ...overrides,
@@ -157,34 +195,63 @@ function renderPanel(investigation: Investigation, disabled = false, piRuntime: 
   )
 }
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  window.localStorage.removeItem('pi-reconciliation-locale')
+})
 
 describe('PiReconciliationPanel', () => {
-  it('presents one recommendation with a complete change list instead of many cards', () => {
+  it('把决定作为页面最强标题，事实来自 decision_brief 而非标题', () => {
     renderPanel(investigationWith())
 
-    expect(screen.getByText('换房后安置 A 的课')).toBeVisible()
-    expect(screen.getByLabelText('Teacher adjustments')).toHaveTextContent(/Instructor 0009\s+10:00–11:00\s+R1 → R2/)
-    expect(screen.getByLabelText('Teacher adjustments')).toHaveTextContent(/Instructor 0008\s+10:00–11:00\s+Unplaced → R1/)
-    expect(screen.getByText('Per-lesson details')).toBeVisible()
-    expect(screen.queryByRole('table', { name: /Expected changes/ })).not.toBeNull()
-    expect(screen.queryByText('把 B 的教师日区块移到 R2，R1 就能安置 A。')).toBeNull()
-    expect(screen.getByText(/Searched only that day/)).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Apply this recommendation' })).toBeEnabled()
-    expect(screen.getByText('Your last instruction: 把这一节排进去')).toBeVisible()
+    expect(screen.getByRole('heading', { name: '把 Instructor 0009 的区块换到 R2，好安置 Instructor 0008 吗？' })).toBeVisible()
+    expect(screen.getByText('可以直接执行')).toBeVisible()
+    // 旧的模型标题不再作为标题展示
+    expect(screen.queryByText('换房后安置 A 的课')).not.toBeInTheDocument()
+    // 相关背景：教师当天行与教室信息
+    expect(screen.getAllByText('Instructor 0008').length).toBeGreaterThan(0)
+    expect(screen.getByText('CC407')).toBeVisible()
+    expect(screen.getByText('可排 Voice')).toBeVisible()
+    expect(screen.getByText(/占用：14:00–16:00 Choir/)).toBeVisible()
+    // 方案变更行
+    expect(screen.getByRole('list', { name: '方案 A 变更' })).toHaveTextContent(/Instructor 0009\s+10:00–11:00\s+R1 → R2/)
+    expect(screen.getByRole('list', { name: '方案 A 变更' })).toHaveTextContent(/Instructor 0008\s+10:00–11:00\s+未排 → R1/)
+    expect(screen.getByRole('button', { name: '应用' })).toBeEnabled()
+    expect(screen.getByText('上一次的指示:把这一节排进去')).toBeVisible()
+    expect(screen.getByText('暂不处理')).toBeVisible()
   })
 
-  it('shows a completed no-package result without an Apply action', () => {
+  it('模型理由与取舍收进折叠的调查过程，不占主区域', () => {
+    renderPanel(investigationWith())
+
+    const evidence = screen.getByTestId('reconciliation-evidence')
+    expect(evidence).not.toHaveAttribute('open')
+    expect(evidence).toHaveTextContent('把 B 的教师日区块移到 R2，R1 就能安置 A。')
+    expect(evidence).toHaveTextContent('教师 B 当天换一次房。')
+    expect(evidence).toHaveTextContent('Searched only that day.')
+    // 逐节明细属于“查看详情”检查层，默认折叠
+    const inspect = screen.getByText('查看详情').closest('details')
+    expect(inspect).not.toHaveAttribute('open')
+    const table = screen.getByRole('table', { name: /方案 A 逐节明细/, hidden: true })
+    expect(table).not.toBeVisible()
+    // 模型原文只在折叠的调查过程层
+    expect(screen.getByText(/把 B 的教师日区块移到 R2，R1 就能安置 A。/)).not.toBeVisible()
+  })
+
+  it('无方案结果使用同一骨架，展示未排课与可读的待决定项', () => {
     const stopped = investigationWith({
       simulations: [],
+      decision_brief: {
+        ...decisionBrief,
+        focus: { question: '固定时间下没有可用房间，是否放开 Voice 限制？', status: 'no_package' },
+        options: [],
+      },
       coverage: { subjects_inspected: 1, subjects_total: 1, uninspected_count: 0, simulation_count: 0 },
       brief: {
         ...investigationWith().brief!,
         termination: 'no_feasible_package_found',
         primary_simulation_id: undefined,
-        title: '没有可行整包方案',
-        rationale: '固定时间下没有可用房间。',
-        coverage: { subjects_inspected: 1, subjects_total: 1, uninspected_count: 0, simulation_count: 0 },
+        focus_question: '固定时间下没有可用房间，是否放开 Voice 限制？',
         remaining_issues: [{ subject_alias: 'issue-1', teacher_alias: 'teacher-1', label: 'Demo: Alpha', reason: '没有可用房间' }],
       },
     })
@@ -192,23 +259,29 @@ describe('PiReconciliationPanel', () => {
     renderPanel(stopped)
 
     expect(screen.getByTestId('reconciliation-stop-result')).toBeVisible()
-    expect(screen.queryByText(/coverage: inspected/)).toBeNull()
+    expect(screen.getByText('当前没有可行方案')).toBeVisible()
+    expect(screen.getByRole('heading', { name: '固定时间下没有可用房间，是否放开 Voice 限制？' })).toBeVisible()
     expect(screen.getByText(/Instructor 0008 · Demo: Alpha/)).toBeVisible()
-    expect(screen.queryByRole('button', { name: 'Apply this recommendation' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '应用' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '记录并关闭' })).toBeVisible()
   })
 
-  it('shows an emergency room-type exception as a human decision', () => {
+  it('把房间类型例外呈现为可读的授权决定', () => {
     const stopped = investigationWith({
       simulations: [],
-      coverage: { subjects_inspected: 1, subjects_total: 1, uninspected_count: 0, simulation_count: 0 },
+      decision_brief: {
+        ...decisionBrief,
+        focus: { question: 'CC104B 空着但不允许排 Voice，要用例外吗？', status: 'missing_info' },
+        options: [],
+      },
       brief: {
         ...investigationWith().brief!,
         termination: 'no_feasible_package_found',
         primary_simulation_id: undefined,
-        title: 'Voice still needs a room-type exception',
+        focus_question: 'CC104B 空着但不允许排 Voice，要用例外吗？',
         pending_decisions: [{
           kind: 'exception_authorization',
-          detail: 'R107B is empty but Voice is not allowed; use it only as an emergency.',
+          detail: 'CC104B 空着但 Voice 不允许；仅在应急时使用。',
           teacher_alias: 'teacher-1',
         }],
         remaining_issues: [{ subject_alias: 'issue-1', teacher_alias: 'teacher-1', label: 'Demo: Alpha', reason: '没有合法声乐房' }],
@@ -217,42 +290,41 @@ describe('PiReconciliationPanel', () => {
 
     renderPanel(stopped)
 
-    expect(screen.getByText('Exception authorization · Instructor 0008')).toBeVisible()
-    expect(screen.queryByText(/R107B is empty/)).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Apply this recommendation' })).not.toBeInTheDocument()
+    expect(screen.getByText('例外授权 · Instructor 0008')).toBeVisible()
+    expect(screen.getAllByText(/CC104B 空着但 Voice 不允许/).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('button', { name: '应用' })).not.toBeInTheDocument()
   })
 
-  it('discloses a same-day time change and asks for that teacher', () => {
-    renderPanel(investigationWith({}, {
+  it('同日改时例外需征得该老师同意后应用按钮才可用', () => {
+    renderPanel(investigationWith({
+      decision_brief: {
+        ...decisionBrief,
+        options: [{
+          ...decisionBrief.options![0],
+          required_teacher_aliases: ['teacher-2'],
+          changes: [{ ...changeRows[0], time_changed: true, to: { room: 'R1', day: 1, start: '11:00', end: '12:00' } }],
+        }],
+      },
+    }, {
       same_day_time_change: true,
       required_teacher_confirmations: [{ teacher_alias: 'teacher-2', confirmation_id: 'confirm-2' }],
       changes: [{ ...changeRows[0], time_changed: true, to: { room: 'R1', day: 1, start: '11:00', end: '12:00' } }],
     }))
 
-    expect(screen.getByText(/time-change exception/)).toBeVisible()
-    expect(screen.getByLabelText('Instructor 0009 has agreed')).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Apply this recommendation' })).toBeDisabled()
+    expect(screen.getByText(/包含同日改时例外/)).toBeVisible()
+    expect(screen.getByLabelText('已征得 Instructor 0009 同意')).toBeVisible()
+    expect(screen.getByRole('button', { name: '应用' })).toBeDisabled()
 
-    fireEvent.click(screen.getByLabelText('Instructor 0009 has agreed'))
-    expect(screen.getByRole('button', { name: 'Apply this recommendation' })).toBeEnabled()
+    fireEvent.click(screen.getByLabelText('已征得 Instructor 0009 同意'))
+    expect(screen.getByRole('button', { name: '应用' })).toBeEnabled()
   })
 
-  it('names remaining work and sacrifices with real people, not aliases', () => {
-    const sacrifice = {
-      subject_alias: 'assignment-1',
-      teacher_alias: 'teacher-2',
-      label: 'Bach: Anna',
-      day: 1,
-      start: '10:00',
-      end: '11:00',
-      room: 'R1',
-    }
+  it('牺牲授权逐项勾选后才允许应用', () => {
+    const sacrifice = { subject_alias: 'assignment-1', teacher_alias: 'teacher-2', label: 'Bach: Anna', day: 1, start: '10:00', end: '11:00', room: 'R1' }
     renderPanel(investigationWith({
-      brief: {
-        ...investigationWith().brief!,
-        remaining_issues: [
-          { subject_alias: 'issue-2', reason: 'Needs a business decision.', teacher_alias: 'teacher-1', label: 'Demo: Alpha' },
-        ],
+      decision_brief: {
+        ...decisionBrief,
+        options: [{ ...decisionBrief.options![0], sacrifice_aliases: ['assignment-1'] }],
       },
     }, {
       sacrifices: [sacrifice],
@@ -260,86 +332,79 @@ describe('PiReconciliationPanel', () => {
       metrics: { resolved_delta: 1, remaining_unresolved: 1, sacrificed_assignments: 1 },
     }))
 
-    expect(screen.getByText('Instructor 0008 · Demo: Alpha')).toBeVisible()
-    expect(screen.queryByText(/Needs a business decision/)).toBeNull()
-    expect(screen.getByLabelText('Authorize sacrifice Instructor 0009 10:00–11:00')).toBeVisible()
+    expect(screen.getByText(/以下已排课程将退回未排，需逐项授权/)).toBeVisible()
+    expect(screen.getByLabelText('授权牺牲 Instructor 0009 10:00–11:00')).toBeVisible()
+    expect(screen.getByRole('button', { name: '应用' })).toBeDisabled()
+
+    fireEvent.click(screen.getByLabelText('授权牺牲 Instructor 0009 10:00–11:00'))
+    expect(screen.getByRole('button', { name: '应用' })).toBeEnabled()
   })
 
-  it('blocks apply until each sacrifice is authorized separately', () => {
-    const sacrifice = { subject_alias: 'assignment-1', teacher_alias: 'teacher-2', label: '', day: 1, start: '10:00', end: '11:00', room: 'R1' }
-    renderPanel(investigationWith({}, {
-      sacrifices: [sacrifice],
-      requires_sacrifice_authorization: true,
-      metrics: { resolved_delta: 1, remaining_unresolved: 1, sacrificed_assignments: 1 },
-    }))
-
-    expect(screen.getByText(/authorize each separately/)).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Apply this recommendation' })).toBeDisabled()
-
-    fireEvent.click(screen.getByLabelText('Authorize sacrifice Instructor 0009 10:00–11:00'))
-    expect(screen.getByRole('button', { name: 'Apply this recommendation' })).toBeEnabled()
-  })
-
-  it('lets the operator pick a catalog model and thinking level without a teacher whitelist', () => {
+  it('让操作者选择目录模型和思考强度，无需教师白名单', () => {
     renderPanel(investigationWith())
 
-    expect(screen.getByLabelText('Message to Pi')).toBeVisible()
-    expect(screen.getByLabelText('Pi model')).toHaveValue('openai-codex::gpt-5.6-luna')
+    expect(screen.getByLabelText('给 Pi 的留言')).toBeVisible()
+    expect(screen.getByLabelText('Pi 模型')).toHaveValue('openai-codex::gpt-5.6-luna')
     expect(screen.getByRole('option', { name: 'deepseek / deepseek-flash' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'kimi-coding / k3' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'openai-codex / gpt-5.3-codex-spark' })).toBeInTheDocument()
-    expect(screen.getByLabelText('Pi thinking')).toHaveValue('off')
+    expect(screen.getByLabelText('思考强度')).toHaveValue('off')
     expect(screen.getByRole('option', { name: 'high' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Instructor 0009 本次不要动')).toBeNull()
     expect(screen.queryByLabelText('Instructor 0009 允许同日改时（最后例外）')).toBeNull()
-    expect(screen.getByRole('button', { name: 'Investigate again with this' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: '用这些条件重新调查' })).toBeEnabled()
   })
 
-  it('posts the selected provider, model, and thinking level', async () => {
+  it('提交所选的 provider、模型和思考强度', async () => {
     vi.mocked(investigateReconciliation).mockResolvedValue({
       data: { operation_id: 'op-1', status: 'queued' },
       workspace_version: 'v1',
     } as never)
     renderPanel(investigationWith())
 
-    fireEvent.change(screen.getByLabelText('Pi model'), { target: { value: 'deepseek::deepseek-flash' } })
-    fireEvent.change(screen.getByLabelText('Pi thinking'), { target: { value: 'high' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Investigate again with this' }))
+    fireEvent.change(screen.getByLabelText('Pi 模型'), { target: { value: 'deepseek::deepseek-flash' } })
+    fireEvent.change(screen.getByLabelText('思考强度'), { target: { value: 'high' } })
+    fireEvent.click(screen.getByRole('button', { name: '用这些条件重新调查' }))
 
     await waitFor(() => expect(investigateReconciliation).toHaveBeenCalledWith('deepseek-flash', 'v1', 1, {
       goal: '',
       provider: 'deepseek',
       thinkingLevel: 'high',
+      protectInstructors: [],
+      allowTimeChangeInstructors: [],
     }))
   })
 
-  it('sends a follow-up instruction as the next investigation goal', async () => {
+  it('把补充指示作为下一次调查的 goal 发送', async () => {
     vi.mocked(investigateReconciliation).mockResolvedValue({
       data: { operation_id: 'op-2', status: 'queued' },
       workspace_version: 'v1',
     } as never)
     renderPanel(investigationWith())
 
-    fireEvent.change(screen.getByLabelText('Message to Pi'), { target: { value: '不要动 Instructor 0009，那两节 Voice 可以改时' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Investigate again with this' }))
+    fireEvent.change(screen.getByLabelText('给 Pi 的留言'), { target: { value: '不要动 Instructor 0008，Instructor 0009 可以改时' } })
+    fireEvent.click(screen.getByRole('button', { name: '用这些条件重新调查' }))
 
     await waitFor(() => expect(investigateReconciliation).toHaveBeenCalledWith('gpt-5.6-luna', 'v1', 1, {
-      goal: '不要动 Instructor 0009，那两节 Voice 可以改时',
+      goal: '不要动 Instructor 0008，Instructor 0009 可以改时',
       provider: 'openai-codex',
       thinkingLevel: 'off',
+      protectInstructors: ['Instructor 0008'],
+      allowTimeChangeInstructors: ['Instructor 0009'],
     }))
   })
 
-  it('marks an interrupted investigation while keeping a verified package usable', () => {
+  it('中断的调查保留可用方案并给出中文提示', () => {
     renderPanel(investigationWith({
       brief: { ...investigationWith().brief!, termination: 'budget_exhausted' },
     }))
 
-    expect(screen.getByText(/cut off by the internal limit/)).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Apply this recommendation' })).toBeEnabled()
+    expect(screen.getByText('调查中断 · 有可用方案')).toBeVisible()
+    expect(screen.getByText(/调查在完整覆盖前达到内部上限/)).toBeVisible()
+    expect(screen.getByRole('button', { name: '应用' })).toBeEnabled()
   })
 
-  it('refetches the schedule session after apply so the grid updates like a manual assign', async () => {
+  it('应用所选方案时携带 scope=option 并刷新课表会话', async () => {
     vi.mocked(applyReconciliation).mockResolvedValue({
       data: { pi_reconciliation: investigationWith({ status: 'applied' }) },
       workspace_version: 'v2',
@@ -362,13 +427,20 @@ describe('PiReconciliationPanel', () => {
       </MemoryRouter>,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Apply this recommendation' }))
+    fireEvent.click(screen.getByRole('button', { name: '应用' }))
 
-    await waitFor(() => expect(applyReconciliation).toHaveBeenCalled())
+    await waitFor(() => expect(applyReconciliation).toHaveBeenCalledWith('inv-1', 'sim-primary', 'v1', [], [], '', [], 'option'))
     expect(invalidate).toHaveBeenCalledWith({ queryKey: schedulerSessionKey })
   })
 
-  it('shows the applied change list and hides the recommendation once applied', () => {
+  it('课表变化后提示建议已失效', () => {
+    renderPanel(investigationWith({ stale: true }))
+
+    expect(screen.getByText(/此建议已失效/)).toBeVisible()
+    expect(screen.getByRole('button', { name: '应用' })).toBeInTheDocument()
+  })
+
+  it('应用后展示已生效的调整与剩余未排课', () => {
     const investigation = investigationWith({
       status: 'applied',
       brief: {
@@ -387,23 +459,21 @@ describe('PiReconciliationPanel', () => {
         applied_at: '2026-09-16T01:00:00+00:00',
       },
     })
-    investigation.task.prior_thread = { goal: '把这一节排进去', goals: ['先把木管挪开', '把这一节排进去'], termination: 'recommendation_ready' }
     renderPanel(investigation)
 
-    expect(screen.getByRole('heading', { name: 'Pi reconciliation investigator' })).toBeVisible()
-    expect(screen.getByText('Applied')).toBeVisible()
-    expect(screen.getByLabelText('Applied adjustments')).toHaveTextContent(/Instructor 0009\s+10:00–11:00\s+R1 → R2/)
-    expect(screen.getByLabelText('Still unplaced')).toHaveTextContent('Instructor 0008 · Demo: Alpha')
-    expect(screen.getByText('Per-lesson details')).toBeVisible()
-    expect(screen.queryByText('1 prior delegation')).toBeNull()
-    fireEvent.click(screen.getByText('Per-lesson details'))
-    expect(screen.getByRole('table', { name: /Changes actually applied/ })).toBeVisible()
-    expect(screen.queryByRole('button', { name: 'Apply this recommendation' })).toBeNull()
-    expect(screen.getByLabelText('Message to Pi')).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Investigate again with this' })).toBeEnabled()
+    expect(screen.getByRole('heading', { name: 'PI 排课调查' })).toBeVisible()
+    expect(screen.getByText('方案已应用到课表')).toBeVisible()
+    expect(screen.getByRole('list', { name: '已应用的调整' })).toHaveTextContent(/Instructor 0009\s+10:00–11:00\s+R1 → R2/)
+    expect(screen.getByRole('list', { name: '仍未安排' })).toHaveTextContent('Instructor 0008 · Demo: Alpha')
+    const appliedDetails = screen.getByText('查看详情').closest('details')
+    expect(appliedDetails).not.toHaveAttribute('open')
+    expect(screen.getByRole('table', { name: /实际生效的逐节变更/, hidden: true })).not.toBeVisible()
+    expect(screen.queryByRole('button', { name: '应用' })).toBeNull()
+    expect(screen.getByLabelText('给 Pi 的留言')).toBeVisible()
+    expect(screen.getByRole('button', { name: '用这些条件重新调查' })).toBeEnabled()
   })
 
-  it('records a rejected recommendation without applying anything', () => {
+  it('记录不采纳的结论，不应用任何变更', () => {
     renderPanel(investigationWith({
       brief: {
         ...investigationWith().brief!,
@@ -412,8 +482,243 @@ describe('PiReconciliationPanel', () => {
       },
     }))
 
-    expect(screen.getByText('Marked as not pursued')).toBeVisible()
-    expect(screen.getByText(/这个代价不能接受/)).toBeVisible()
-    expect(screen.queryByRole('button', { name: 'Apply this recommendation' })).toBeNull()
+    expect(screen.getByText(/这个结论已记录为不采纳：这个代价不能接受/)).toBeVisible()
+    expect(screen.queryByRole('button', { name: '应用' })).toBeNull()
+  })
+
+  it('真实案例形态：两个方案 + 共同部分只列一次，变体房间与模型倾向安静呈现', async () => {
+    vi.mocked(applyReconciliation).mockResolvedValue({
+      data: { pi_reconciliation: investigationWith({ status: 'applied' }) },
+      workspace_version: 'v2',
+      warnings: [],
+      error: null,
+    } as never)
+    const commonChange = {
+      ...changeRows[1],
+      subject_alias: 'issue-3',
+      group_alias: 'issue-3',
+      teacher: 'Instructor 0008',
+      label: 'Demo: Alpha',
+      from: { room: null, day: 1, start: '09:00', end: '10:00' },
+      to: { room: 'CC407', day: 1, start: '09:00', end: '10:00' },
+    }
+    const optionChangeA = { ...changeRows[0], to: { room: 'CC407', day: 1, start: '10:00', end: '11:00' } }
+    const optionChangeB = { ...changeRows[0], to: { room: 'CC408', day: 1, start: '10:00', end: '11:00' } }
+    const realCase: Investigation = investigationWith({
+      decision_brief: {
+        focus: { question: 'CC407 和 CC408 都能安置，选哪一个？', status: 'choice' },
+        options: [
+          {
+            option_id: 'a',
+            source: 'primary',
+            simulation_id: 'sim-a',
+            changes: [commonChange, optionChangeA],
+            diffs: [optionChangeA],
+            metrics: { resolved_delta: 2, remaining_unresolved: 0, moved_assignments: 1, room_switches: 1, sacrificed_assignments: 0 },
+            required_teacher_aliases: [],
+            sacrifice_aliases: [],
+          },
+          {
+            option_id: 'b',
+            source: 'fallback',
+            simulation_id: 'sim-b',
+            changes: [commonChange, optionChangeB],
+            diffs: [optionChangeB],
+            metrics: { resolved_delta: 2, remaining_unresolved: 0, moved_assignments: 1, room_switches: 1, sacrificed_assignments: 0 },
+            required_teacher_aliases: [],
+            sacrifice_aliases: [],
+          },
+        ],
+        common: { changes: [commonChange], required_teacher_aliases: ['teacher-1'], sacrifice_aliases: [] },
+        comparison: [{ label: 'Instructor 0009 10:00–11:00', values: ['CC407', 'CC408'] }],
+        teacher_days: [
+          {
+            teacher: 'teacher-1',
+            rows: [{ start: '10:00', end: '11:00', room: 'CC407', label: 'Demo: Alpha', state: 'placed', variants: { a: 'CC407', b: 'CC408' } }],
+          },
+        ],
+        room_views: [
+          { room: 'CC407', accepts: ['Voice', 'Piano'], busy: [] },
+          { room: 'CC408', accepts: ['Voice'], busy: [{ start: '15:00', end: '16:00', label: 'Violin' }] },
+        ],
+        unknowns: [{ subject: 'Teacher C 是否接受改时', note: '尚未确认' }],
+        agent_note: '两个方案都可行，A 对当天下午影响更小。',
+      },
+      simulations: [
+        { ...simulation, simulation_id: 'sim-a', changes: [optionChangeA] },
+        { ...simulation, simulation_id: 'sim-b', changes: [optionChangeB] },
+      ],
+    })
+
+    renderPanel(realCase)
+
+    expect(screen.getByText('需要你做业务选择')).toBeVisible()
+    const compare = screen.getByRole('table', { name: '方案比较' })
+    expect(compare).toHaveTextContent('Instructor 0009 10:00–11:00')
+    expect(compare).toHaveTextContent('CC407')
+    expect(compare).toHaveTextContent('CC408')
+    expect(compare).not.toHaveTextContent('本次共排好')
+    expect(compare).not.toHaveTextContent('涉及房间数')
+    expect(screen.getByRole('list', { name: '方案 A 变更' })).toHaveTextContent(/→ CC407/)
+    expect(screen.getByRole('list', { name: '方案 A 变更' })).not.toHaveTextContent('09:00–10:00')
+    expect(screen.getByRole('list', { name: '方案 B 变更' })).toHaveTextContent(/→ CC408/)
+    expect(screen.getByRole('list', { name: '方案 B 变更' })).not.toHaveTextContent('09:00–10:00')
+    // 教师当天行以变体标出分歧房间
+    expect(screen.getByText('方案 B → CC408')).toBeVisible()
+    // 模型倾向安静呈现，只出现一次
+    expect(screen.getByText('Pi 的倾向:两个方案都可行，A 对当天下午影响更小。')).toBeVisible()
+    // 未核实信息不作为事实
+    expect(screen.getByText(/⚠ 未核实：Teacher C 是否接受改时/)).toBeVisible()
+    // 共同部分只列一次，且有独立的应用入口
+    expect(screen.getAllByRole('list', { name: '共同变更' })).toHaveLength(1)
+    expect(screen.getByTestId('reconciliation-common')).toHaveTextContent(/Instructor 0008\s+09:00–10:00\s+未排 → CC407/)
+    // 切换到方案 B 再切回，确认选择可用
+    fireEvent.click(screen.getByLabelText('选择方案 B'))
+    expect(screen.getByLabelText('选择方案 B')).toBeChecked()
+    fireEvent.click(screen.getByLabelText('选择方案 A'))
+    // 共同部分需要先征得老师同意
+    expect(screen.getByRole('button', { name: '先执行共同部分' })).toBeDisabled()
+    fireEvent.click(screen.getByLabelText('已征得 Instructor 0008 同意'))
+    expect(screen.getByRole('button', { name: '先执行共同部分' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: '先执行共同部分' }))
+    await waitFor(() => expect(applyReconciliation).toHaveBeenCalledWith('inv-1', '', 'v1', ['teacher-1'], [], '', [], 'common'))
+  })
+
+  it('渲染展开阅读与返回课表切换', () => {
+    const onToggle = vi.fn()
+    const { rerender } = render(
+      <MemoryRouter>
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <PiReconciliationPanel
+            activeDay={1}
+            disabled={false}
+            investigation={investigationWith()}
+            piRuntime={null}
+            workspaceVersion="v1"
+            isReadingExpanded={false}
+            onToggleReadingExpanded={onToggle}
+          />
+        </QueryClientProvider>
+      </MemoryRouter>,
+    )
+
+    const expandBtn = screen.getByRole('button', { name: '展开阅读' })
+    expect(expandBtn).toBeVisible()
+    fireEvent.click(expandBtn)
+    expect(onToggle).toHaveBeenCalledTimes(1)
+
+    rerender(
+      <MemoryRouter>
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <PiReconciliationPanel
+            activeDay={1}
+            disabled={false}
+            investigation={investigationWith()}
+            piRuntime={null}
+            workspaceVersion="v1"
+            isReadingExpanded={true}
+            onToggleReadingExpanded={onToggle}
+          />
+        </QueryClientProvider>
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('button', { name: '返回课表' })).toBeVisible()
+  })
+
+  it('方案差集为空时只提示与共同部分相同，不重复共同变更', () => {
+    const commonChange = {
+      ...changeRows[1],
+      subject_alias: 'issue-3',
+      group_alias: 'issue-3',
+      teacher: 'Instructor 0008',
+      label: 'Demo: Alpha',
+      from: { room: null, day: 1, start: '09:00', end: '10:00' },
+      to: { room: 'CC407', day: 1, start: '09:00', end: '10:00' },
+    }
+    const uniqueA = { ...changeRows[0], to: { room: 'CC407', day: 1, start: '10:00', end: '11:00' } }
+    renderPanel(investigationWith({
+      decision_brief: {
+        ...decisionBrief,
+        focus: { question: '共同部分之外，方案 A 还要换房吗？', status: 'choice' },
+        options: [
+          {
+            option_id: 'a',
+            source: 'primary',
+            simulation_id: 'sim-a',
+            changes: [commonChange, uniqueA],
+            diffs: [uniqueA],
+            metrics: {},
+            required_teacher_aliases: [],
+            sacrifice_aliases: [],
+          },
+          {
+            option_id: 'b',
+            source: 'fallback',
+            simulation_id: 'sim-b',
+            changes: [commonChange],
+            diffs: [],
+            metrics: {},
+            required_teacher_aliases: [],
+            sacrifice_aliases: [],
+          },
+        ],
+        common: { changes: [commonChange], required_teacher_aliases: [], sacrifice_aliases: [] },
+        comparison: [{ label: '仍未安排', values: ['无', 'Instructor 0009 1 节'] }],
+      },
+      simulations: [
+        { ...simulation, simulation_id: 'sim-a', changes: [commonChange, uniqueA] },
+        { ...simulation, simulation_id: 'sim-b', changes: [commonChange] },
+      ],
+    }))
+
+    expect(screen.getByRole('list', { name: '共同变更' })).toHaveTextContent(/09:00–10:00/)
+    expect(screen.getByRole('list', { name: '方案 A 变更' })).toHaveTextContent(/→ CC407/)
+    expect(screen.queryByRole('list', { name: '方案 B 变更' })).toBeNull()
+    expect(screen.getByTestId('reconciliation-option-b')).toHaveTextContent('与共同部分相同')
+    expect(screen.getByRole('table', { name: '方案比较' })).toHaveTextContent('仍未安排')
+    expect(screen.getByRole('table', { name: '方案比较' })).not.toHaveTextContent('本次共排好')
+  })
+
+  it('继续调查时展示 Python 算出的修订效果', () => {
+    renderPanel(investigationWith({
+      decision_brief: {
+        ...decisionBrief,
+        revision: {
+          instruction: '不要动 Instructor 0009',
+          protect_teachers: ['Instructor 0009'],
+          allow_time_change_teachers: [],
+          effects: [{ code: 'protect_applied', text: '已转为硬约束：保护 Instructor 0009 当天已有安排。' }],
+        },
+      },
+    }))
+
+    const revision = screen.getByTestId('reconciliation-revision')
+    expect(revision).toHaveTextContent('本轮指示：不要动 Instructor 0009')
+    expect(revision).toHaveTextContent('已转为硬约束：保护 Instructor 0009 当天已有安排。')
+  })
+
+  it('仅切换 PI 面板语言，默认中文并写入 localStorage', () => {
+    renderPanel(investigationWith())
+    expect(screen.getByRole('heading', { name: 'PI 排课调查' })).toBeVisible()
+    expect(screen.getByRole('button', { name: '应用' })).toBeVisible()
+    fireEvent.click(screen.getByTestId('pi-locale-toggle'))
+    expect(screen.getByRole('heading', { name: 'PI Reconciliation' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Apply' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Defer' })).toBeVisible()
+    expect(window.localStorage.getItem('pi-reconciliation-locale')).toBe('en')
+  })
+})
+
+describe('extractOperatorConstraints', () => {
+  it('按子句绑定老师，不把保护套到所有人', () => {
+    expect(extractOperatorConstraints('不要动 Zhao，WANG 可以改时', ['Zhao', 'WANG', 'Marco'])).toEqual({
+      protect: ['Zhao'],
+      allow: ['WANG'],
+    })
+    expect(extractOperatorConstraints('不要动 Instructor 0009', ['Instructor 0008', 'Instructor 0009'])).toEqual({
+      protect: ['Instructor 0009'],
+      allow: [],
+    })
   })
 })

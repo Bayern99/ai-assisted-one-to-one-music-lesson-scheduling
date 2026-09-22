@@ -187,6 +187,7 @@ def test_brief_references_only_recorded_simulations():
     brief = investigator.submit_reconciliation_brief({
         "primary_simulation_id": simulation["simulation_id"],
         "title": "Keep the original time",
+        "focus_question": "这节未排课可以按原时间安排，是否执行？",
         "rationale": "A compatible room is available.",
         "trade_offs": [],
         "limitations": [],
@@ -530,7 +531,7 @@ def test_inspect_exposes_incompatible_empty_rooms_without_making_them_legal():
 def test_unresolved_inst_field_gets_a_teacher_alias():
     issue = _issue()
     issue.pop("instructor")
-    issue["inst"] = "Instructor 0007"
+    issue["inst"] = "Ms. Carrey Ka I LAM"
     investigator = _investigate(_runtime(unresolved=[issue], assignments=[]))
     inspected = investigator.inspect_reconciliation()
     subject = next(item for item in inspected["subjects"] if item["kind"] == "issue")
@@ -617,6 +618,7 @@ def test_withdraw_is_disclosed_as_a_sacrifice_and_needs_its_own_authorization():
         "termination": "recommendation_ready",
         "primary_simulation_id": result["simulation_id"],
         "title": "Free the room by sacrificing the block",
+        "focus_question": "要腾出教室需要撤下这位教师的整块连排课，是否授权？",
         "rationale": "No room can hold the block unchanged.",
         "trade_offs": ["One teacher-day block loses its place."],
         "limitations": ["No further rooms available."],
@@ -658,6 +660,7 @@ def test_brief_rejects_sacrifice_primary_when_preservation_exists():
         "primary_simulation_id": preservation["simulation_id"],
         "fallback_simulation_id": sacrifice["simulation_id"],
         "title": "Keep assigned lessons",
+        "focus_question": "移动整块连排课即可安置未排课，是否按此执行？",
         "rationale": "Move the block instead of withdrawing it.",
         "trade_offs": [],
         "limitations": [],
@@ -737,7 +740,8 @@ def test_no_package_brief_requires_full_inspection_and_complete_remaining_issues
     issue_alias = uninspected.focus_aliases()[0]
     payload = {
         "termination": "no_feasible_package_found",
-        "title": "No package",
+        "title": "今天没有可行安排",
+        "focus_question": "今天没有可行安排，需要改变条件后重新调查。",
         "rationale": "No fixed-time placement was found.",
         "remaining_issues": [{"subject_alias": issue_alias, "reason": "No room."}],
     }
@@ -811,17 +815,18 @@ def test_brief_carries_pending_decisions_and_remaining_issues():
         "termination": "recommendation_ready",
         "primary_simulation_id": simulation["simulation_id"],
         "title": "Move the block",
+        "focus_question": "移动整块连排课即可安置未排课，但涉及业务取舍，请决定。",
         "rationale": "The block moves as a unit.",
         "trade_offs": ["Instructor 0009 changes room once."],
         "limitations": ["Only one day was searched."],
         "pending_decisions": [
-            {"kind": "business_tradeoff", "detail": "If the block may not move, the target stays unresolved."},
+            {"kind": "business_tradeoff", "detail": "If the block may not move, the target lesson stays unplaced."},
         ],
         "remaining_issues": [{"subject_alias": target_alias, "reason": "Needs a business decision."}],
     })
 
     assert brief["pending_decisions"] == [
-        {"kind": "business_tradeoff", "detail": "If the block may not move, the target stays unresolved.", "teacher_alias": None}
+        {"kind": "business_tradeoff", "detail": "If the block may not move, the target lesson stays unplaced.", "teacher_alias": None}
     ]
     assert brief["remaining_issues"][0]["subject_alias"] == target_alias
     assert brief["remaining_issues"][0]["reason"] == "Needs a business decision."
@@ -1011,6 +1016,7 @@ def test_brief_must_account_for_every_lesson_left_unresolved():
         "termination": "recommendation_ready",
         "primary_simulation_id": simulation["simulation_id"],
         "title": "Partial",
+        "focus_question": "这节未排课可以安排，另一节仍需后续处理，是否先执行？",
         "rationale": "Places one of two.",
         "trade_offs": [],
         "limitations": [],
@@ -1149,7 +1155,8 @@ def test_no_package_brief_allows_legal_moves_that_do_not_place_unresolved_work()
     issue_alias = inspected["case_index"][0]["subject_alias"]
     brief = investigator.submit_reconciliation_brief({
         "termination": "no_feasible_package_found",
-        "title": "No placing package",
+        "title": "没有可执行的安置",
+        "focus_question": "只能移动已排课块，未排课仍无法安置，需要新的条件。",
         "rationale": "Only already-assigned blocks were moved.",
         "remaining_issues": [{"subject_alias": issue_alias, "reason": "Still no room."}],
     })
@@ -1186,8 +1193,8 @@ def test_server_bound_close_keeps_a_placing_package():
     assert brief["primary_simulation_id"] == placed["simulation_id"]
 
 def test_instructor_names_stay_real_while_students_stay_aliased():
-    assignment = _assignment("event-1", "R1", "10:00", "Instructor 0006")
-    unresolved = _issue(instructor="Instructor 0006")
+    assignment = _assignment("event-1", "R1", "10:00", "Ms. Jie WANG")
+    unresolved = _issue(instructor="Ms. Jie WANG")
     unresolved["student"] = "Student Secret"
     runtime = _runtime(
         assignments=[assignment],
@@ -1195,15 +1202,15 @@ def test_instructor_names_stay_real_while_students_stay_aliased():
         rules={
             "room_types": {"R1": ["Piano"], "R2": ["Piano"]},
             "constraints": {"time_range": {"start": "08:00", "end": "18:00"}},
-            "instructor_time_change_eligibility": {"Instructor 0006": "ask_allowed"},
+            "instructor_time_change_eligibility": {"Ms. Jie WANG": "ask_allowed"},
         },
     )
-    investigator = _investigate(runtime, goal="instructor six needs R106; keep Student Secret")
+    investigator = _investigate(runtime, goal="jie wang needs CC321; keep Student Secret")
     task = investigator.model_task()
-    assert "instructor six needs R106" in task["goal"]
+    assert "jie wang needs CC321" in task["goal"]
     assert "Student Secret" not in task["goal"]
     inspected = investigator.inspect_reconciliation()
-    assert {item["teacher_alias"] for item in inspected["subjects"]} == {"Instructor 0006"}
+    assert {item["teacher_alias"] for item in inspected["subjects"]} == {"Ms. Jie WANG"}
     assert "teacher-1" not in repr(inspected)
     assert "Student Secret" not in repr(inspected["task"])
 
@@ -1222,3 +1229,176 @@ def test_invalid_simulate_payload_returns_a_usable_failure_code():
     assert unknown["failure_codes"] == ["unknown_subject_alias"]
     assert "issue-99" in unknown["rejection"]
     assert investigator.persisted_record()["simulations"] == {}
+
+
+def test_brief_prose_rejects_internal_identifiers_and_requires_chinese_focus():
+    runtime = _runtime(unresolved=[_issue()])
+    investigator = _investigate(runtime)
+    inspected = investigator.inspect_reconciliation()
+    simulation = investigator.simulate_package([
+        {
+            "subject_alias": inspected["case_index"][0]["subject_alias"],
+            "target": {"room": "R1", "day": 1, "start": "10:00", "end": "11:00"},
+        },
+    ])
+    base = {
+        "termination": "recommendation_ready",
+        "primary_simulation_id": simulation["simulation_id"],
+        "title": "按原时间安置这节未排课",
+        "focus_question": "这节未排课可以按原时间安排，是否执行？",
+        "rationale": "有一间兼容教室空闲。",
+        "trade_offs": [],
+        "limitations": [],
+    }
+    with pytest.raises(Exception, match="internal identifier"):
+        investigator.submit_reconciliation_brief({**base, "title": "Option 9f022720 wins"})
+    with pytest.raises(Exception, match="internal identifier"):
+        investigator.submit_reconciliation_brief({**base, "rationale": "其他尝试返回 hard_conflict。"})
+    with pytest.raises(Exception, match="Chinese"):
+        investigator.submit_reconciliation_brief({**base, "focus_question": "Which room should be used?"})
+    brief = investigator.submit_reconciliation_brief({
+        **base,
+        "unknowns": [{"subject": "课程大纲", "note": "特殊房间要求未核实。"}],
+    })
+    assert brief["unknowns"][0]["subject"] == "课程大纲"
+
+
+def test_decision_brief_projects_options_common_teacher_days_and_rooms():
+    from modules.api.services.pi_reconciliation import build_decision_brief
+
+    runtime = _runtime(unresolved=[
+        _issue("issue-1"),
+        _issue("issue-2", start="12:00", end="13:00"),
+    ])
+    investigator = _investigate(runtime)
+    inspected = investigator.inspect_reconciliation()
+    alias_one, alias_two = [case["subject_alias"] for case in inspected["case_index"]]
+    primary = investigator.simulate_package([
+        {"subject_alias": alias_one, "target": {"room": "R1", "day": 1, "start": "10:00", "end": "11:00"}},
+        {"subject_alias": alias_two, "target": {"room": "R2", "day": 1, "start": "12:00", "end": "13:00"}},
+    ])
+    fallback = investigator.simulate_package([
+        {"subject_alias": alias_one, "target": {"room": "R1", "day": 1, "start": "10:00", "end": "11:00"}},
+    ])
+    investigator.submit_reconciliation_brief({
+        "termination": "recommendation_ready",
+        "primary_simulation_id": primary["simulation_id"],
+        "fallback_simulation_id": fallback["simulation_id"],
+        "title": "先安置第一节",
+        "focus_question": "第一节课可以安置，第二节仍无房间，是否先执行？",
+        "rationale": "R1 可以安置第一节。",
+        "trade_offs": [],
+        "limitations": [],
+        "remaining_issues": [],
+    })
+
+    view = build_decision_brief(investigator.persisted_record(), runtime)
+    assert view["focus"]["status"] == "choice"
+    assert [option["option_id"] for option in view["options"]] == ["a", "b"]
+    assert len(view["common"]["changes"]) == 1
+    assert view["common"]["changes"][0]["to"]["room"] == "R1"
+    assert [row["to"]["room"] for row in view["options"][0]["diffs"]] == ["R2"]
+    assert view["options"][1]["diffs"] == []
+    remaining = next(row for row in view["comparison"] if row["label"] == "仍未安排")
+    assert remaining["values"][0] != remaining["values"][1]
+    assert all("本次共排好" not in row["label"] and "涉及房间数" not in row["label"] for row in view["comparison"])
+
+    teachers = {day["teacher"]: day["rows"] for day in view["teacher_days"]}
+    assert set(teachers) == {"Instructor 0008"}
+    assert len(teachers["Instructor 0008"]) == 2
+    states = {row["state"] for row in teachers["Instructor 0008"]}
+    assert states == {"placed", "unplaced"}
+    variant_row = next(
+        row for row in teachers["Instructor 0008"]
+        if len(set(row["variants"].values())) > 1
+    )
+    assert variant_row["variants"]["a"] == "R2"
+    assert variant_row["variants"]["b"] is None
+
+    rooms = {room["room"]: room for room in view["room_views"]}
+    assert set(rooms) == {"R1", "R2"}
+    assert "Piano" in rooms["R1"]["accepts"]
+
+
+def test_decision_brief_status_follows_options_and_unknowns():
+    from modules.api.services.pi_reconciliation import build_decision_brief
+
+    def submit_single(unknowns=None):
+        runtime = _runtime(unresolved=[_issue()])
+        investigator = _investigate(runtime)
+        inspected = investigator.inspect_reconciliation()
+        simulation = investigator.simulate_package([
+            {
+                "subject_alias": inspected["case_index"][0]["subject_alias"],
+                "target": {"room": "R1", "day": 1, "start": "10:00", "end": "11:00"},
+            },
+        ])
+        investigator.submit_reconciliation_brief({
+            "termination": "recommendation_ready",
+            "primary_simulation_id": simulation["simulation_id"],
+            "title": "按原时间安置这节未排课",
+            "focus_question": "这节未排课可以按原时间安排，是否执行？",
+            "rationale": "有一间兼容教室空闲。",
+            "trade_offs": [],
+            "limitations": [],
+            "unknowns": unknowns or [],
+        })
+        return build_decision_brief(investigator.persisted_record(), runtime)
+
+    ready_view = submit_single()
+    assert ready_view["focus"]["status"] == "ready"
+    assert len(ready_view["options"]) == 1
+    assert ready_view["common"] is None
+
+    unknown_view = submit_single(unknowns=[{"subject": "课程大纲", "note": "特殊要求未核实。"}])
+    assert unknown_view["focus"]["status"] == "missing_info"
+    assert unknown_view["unknowns"][0]["subject"] == "课程大纲"
+
+
+
+def test_extract_operator_constraints_is_clause_scoped():
+    from modules.api.services.pi_reconciliation import extract_operator_constraints
+
+    protect, allow = extract_operator_constraints(
+        "不要动 Zhao，WANG 可以改时",
+        ["Zhao", "WANG", "Marco"],
+    )
+    assert protect == ["Zhao"]
+    assert allow == ["WANG"]
+    protect, allow = extract_operator_constraints("先把 Voice 排进去", ["Zhao", "WANG"])
+    assert protect == []
+    assert allow == []
+    protect, allow = extract_operator_constraints("不要动 Instructor 0009", ["Instructor 0008", "Instructor 0009"])
+    assert protect == ["Instructor 0009"]
+    assert allow == []
+
+
+def test_revision_view_reports_protect_and_lost_option():
+    from modules.api.services.pi_reconciliation import _revision_view
+
+    previous = {
+        "investigation_id": "inv-old",
+        "day": 1,
+        "created_at": "2026-09-16T00:00:00+00:00",
+        "brief": {"primary_simulation_id": "sim-a", "fallback_simulation_id": "sim-b"},
+        "simulations": {
+            "sim-a": {"public": {"status": "feasible", "normalized_changes": []}},
+            "sim-b": {"public": {"status": "feasible", "normalized_changes": []}},
+        },
+    }
+    runtime = SimpleNamespace(edit_session={"reconciliation_plans": {"inv-old": previous}})
+    view = _revision_view(
+        {
+            "investigation_id": "inv-new",
+            "day": 1,
+            "goal": "不要动 Zhao",
+            "protect_teachers": ["Zhao"],
+            "allow_time_change_teachers": [],
+        },
+        runtime,
+        options=[{"option_id": "a"}],
+        common=None,
+    )
+    texts = [item["text"] for item in view["effects"]]
+    assert any("保护 Zhao" in text for text in texts)
+    assert any("从 2 个变为 1 个" in text for text in texts)

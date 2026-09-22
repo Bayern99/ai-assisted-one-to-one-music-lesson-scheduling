@@ -140,6 +140,7 @@ def _submit_brief(store, token, simulation):
         "termination": "recommendation_ready",
         "primary_simulation_id": simulation["simulation_id"],
         "title": "Keep the original time",
+        "focus_question": "这节未排课可以按原时间安排，是否执行？",
         "rationale": "A compatible room is available.",
         "trade_offs": [],
         "limitations": [],

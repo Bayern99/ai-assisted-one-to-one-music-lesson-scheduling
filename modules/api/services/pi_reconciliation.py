@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 import secrets
 import threading
 from dataclasses import dataclass, field
@@ -23,6 +24,12 @@ from modules.api.services.workspace import compute_workspace_version
 from modules.scheduler.logic import unresolved_assignment_primitives
 from modules.scheduler.logic.reconciliation_investigation import (
     ReconciliationInvestigation,
+    _clock,
+    _event_day,
+    _event_placement,
+    _instrument,
+    _room_accepts,
+    _teacher,
     public_record_from_persisted,
 )
 from modules.scheduler.logic.resolution_package import (
@@ -41,7 +48,7 @@ from modules.scheduler.logic.session_state import (
 from modules.scheduler.logic.step4_service import build_step4_runtime
 
 
-RECONCILIATION_PROMPT_VERSION = "pi-step4-reconciliation-v5"
+RECONCILIATION_PROMPT_VERSION = "pi-step4-reconciliation-v6"
 MAX_STORED_RECONCILIATION_PLANS = 3
 DECISION_MEMORY_KEY = "reconciliation_decision_memory"
 MAX_DECISION_MEMORY = 32
@@ -74,9 +81,10 @@ Work with purpose:
 - Inspect the whole day once, then test a small number of genuinely different
   complete packages. Every further test must answer a real question: unblock
   important work, remove a clear cost, or confirm a condition a package depends on.
-- The operator goal in the task premises is a real constraint. If it says move
-  instrumental work first and keep piano/voice in place, a package that places
-  the legally available work is a valid primary even when harder lessons remain.
+- The operator goal is a preference for what to explore, not a Python rule.
+  Hard constraints are only protect_teacher_aliases and
+  time_change_exception_teacher_aliases. Never treat free-text goal as a
+  lock, a protection, or a time-change exception.
 - available_rooms are Python-legal empty rooms. incompatible_empty_rooms are
   occupancy-empty rooms that room-type rules reject. Those are emergency options
   for a human exception, never legal simulate targets. If legal rooms are
@@ -90,8 +98,9 @@ Work with purpose:
 - unknown_subject_alias, missing_subject_alias, empty_package, and
   duplicate_subject are package-shape errors. Read rejection and resubmit a
   complete alias+target list. Do not ask the operator how placement works.
-- If the operator goal names an instructor and rooms, that is the primary
-  work. Do not substitute an easier unrelated placement package.
+- If protect_teacher_aliases or time-change exceptions are set, obey those
+  Python constraints. The goal text may name a person to investigate first;
+  it does not forbid any legal package on its own.
 - Do not repeat an equivalent package, do not retry a rule rejection in new
   wording, and do not search without a reason.
 - A follow-up is continued directed discussion, not a chat session and not a
@@ -101,11 +110,35 @@ Work with purpose:
   day is impossible.
 - If a preservation package exists, it must be the primary recommendation; a
   sacrifice package may only be the fallback.
+
+Operator communication (the brief is read by a non-technical scheduling
+coordinator, not an engineer):
+- Write title, focus_question, rationale, trade_offs, limitations,
+  pending_decisions details, unknowns, and agent_note in Chinese, in plain
+  everyday words.
+- Never put internal aliases (issue-N, assignment-N, block-N, teacher-N),
+  simulation ids, hashes, or Python failure codes in operator-facing prose.
+  Refer to lessons as "某老师 HH:MM 的课" and to rooms by name.
+- focus_question is one sentence naming the actual decision: what is being
+  chosen and between whom. Example shape: "14:00–16:00 只有 CC407 可以排
+  Voice，今天应该优先安排 Marco 的 2 节还是 Zhao 的 2 节？"
+- Numbers in prose must match the simulated results exactly. If the primary
+  places 5 lessons, never write 4.
+- unknowns lists only facts that could change the conclusion, phrased as what
+  is not verified. Never state an unverified requirement as absent.
+- agent_note is optional: at most one quiet sentence of的倾向 with the reason.
+  Do not label options "primary"/"fallback" for the operator; the UI is
+  neutral A/B.
+- When the operator expresses confusion, the next brief must explain the same
+  decision more concretely (names, times, rooms) — never answer confusion
+  with a shorter or vaguer summary.
 """
 RECONCILIATION_TASK_PROMPT = """Investigate this day's linked Step 4 adjustment work.
 Start with inspect_reconciliation to see the whole day, its teacher-day blocks,
 the conflict neighbourhood, and which rooms are free right now.
-Follow the operator goal in the task premises. candidate_rooms and
+Follow the operator goal as the current question, not as a Python lock.
+Hard constraints are only the protect and time-change lists in the task.
+candidate_rooms and
 available_rooms are currently empty legal rooms, not the only legal final-state
 targets. swap_required means simulate a swapped final state; do not treat the
 block as immovable. A complete package may swap two blocks that occupy each
@@ -126,9 +159,86 @@ package exists, the complete change list, the remaining unresolved work, and
 whatever genuinely needs a human decision. Use pending_decisions for missing
 facts, business trade-offs, and emergency room-type exceptions. Teacher
 confirmations and sacrifice authorizations are derived from the chosen package.
+The brief must include focus_question (one Chinese sentence naming the decision),
+and may include unknowns and agent_note. Write all operator prose in Chinese
+plain words; internal aliases, ids, and failure codes are rejected and must be
+rewritten.
 Stop at the bounded search budget. Report budget exhaustion as an interrupted
 investigation, never as a proven impossibility.
 """
+
+
+
+_PROTECT_INTENT = re.compile(r"不要动|别动|不许动|保护|先不动")
+_TIME_CHANGE_INTENT = re.compile(r"改时|改时间")
+_NAME_SKIP = {"mr", "ms", "mrs", "dr", "miss"}
+
+
+def _name_mentioned(text, name):
+    folded = text.casefold()
+    if name.casefold() in folded:
+        return True
+    parts = [part for part in re.split(r"[\s.]+", name) if len(part) >= 3 and part.casefold() not in _NAME_SKIP]
+    return any(part.casefold() in folded for part in parts)
+
+
+def extract_operator_constraints(text, teachers):
+    """Turn protect / time-change phrasing into Python constraint lists.
+
+    Clause-scoped: "不要动 Zhao，WANG 可以改时" protects Zhao only.
+    Unmatched text stays a preference in goal; it is not a lock.
+    """
+    text = str(text or "").strip()
+    names = sorted({str(item).strip() for item in teachers if str(item).strip()}, key=len, reverse=True)
+    protect, allow = [], []
+    if not text or not names:
+        return protect, allow
+    clauses = [part.strip() for part in re.split(r"[，。；;\n]+", text) if part.strip()] or [text]
+    for clause in clauses:
+        folded = clause.casefold()
+        full = [name for name in names if name.casefold() in folded]
+        mentioned = full or [name for name in names if _name_mentioned(clause, name)]
+        mentioned = [
+            name for name in mentioned
+            if not any(name != other and name.casefold() in other.casefold() for other in mentioned)
+        ]
+        if not mentioned:
+            continue
+        if _PROTECT_INTENT.search(clause):
+            for name in mentioned:
+                if name not in protect:
+                    protect.append(name)
+        if _TIME_CHANGE_INTENT.search(clause):
+            for name in mentioned:
+                if name not in allow:
+                    allow.append(name)
+    return protect, allow
+
+
+def _known_teachers(runtime):
+    names = []
+    session = getattr(runtime, "edit_session", None) or {}
+    for event in session.get("assignments") or []:
+        teacher = _teacher(event) if isinstance(event, dict) else ""
+        if teacher and teacher not in names:
+            names.append(teacher)
+    for issue in session.get("unassigned_lessons") or []:
+        if not isinstance(issue, dict):
+            continue
+        teacher = str(unresolved_assignment_primitives.build_context(issue).get("instructor") or "").strip()
+        if teacher and teacher not in names:
+            names.append(teacher)
+    return names
+
+
+def _union_names(*groups):
+    seen = []
+    for group in groups:
+        for item in group or []:
+            name = str(item or "").strip()
+            if name and name not in seen:
+                seen.append(name)
+    return seen
 
 
 class PiReconciliationError(RuntimeError):
@@ -604,6 +714,9 @@ def build_reconciliation_investigation(
         raise SchedulerCommandRejected("This day has no unresolved lessons needing reconciliation.")
     if str(expected_version) != compute_workspace_version(context.loader.base_dir, context=context):
         raise SchedulerCommandRejected("The workspace changed; refresh before investigating.")
+    extracted_protect, extracted_allow = extract_operator_constraints(goal, _known_teachers(runtime))
+    protect_instructors = _union_names(protect_instructors, extracted_protect)
+    allow_time_change_instructors = _union_names(allow_time_change_instructors, extracted_allow)
     investigation = ReconciliationInvestigation(
         runtime,
         workspace_version=expected_version,
@@ -949,6 +1062,491 @@ def run_pi_reconciliation_operation(
         capability_store.revoke(token)
 
 
+def _outcome_key(public):
+    rows = []
+    for change in public.get("changes") or []:
+        if not isinstance(change, dict):
+            continue
+        to = change.get("to") or {}
+        rows.append((
+            str(change.get("subject_alias") or ""),
+            str(change.get("action") or ""),
+            str(to.get("room") or ""),
+            str(to.get("day") or ""),
+            _clock(to.get("start")),
+            _clock(to.get("end")),
+        ))
+    return sorted(rows)
+
+
+def _common_normalized(left, right):
+    """Shared changes of two packages: same subject, same target, same action."""
+
+    def freeze(items):
+        table = {}
+        for item in items or []:
+            if not isinstance(item, dict):
+                continue
+            target = item.get("target") if isinstance(item.get("target"), dict) else None
+            table[str(item.get("subject_alias") or "")] = {
+                "subject_alias": item.get("subject_alias"),
+                "target": copy.deepcopy(target),
+                "withdraw": bool(item.get("withdraw")),
+            }
+        return table
+
+    left_table = freeze(left)
+    right_table = freeze(right)
+    common = []
+    for subject_id, change in left_table.items():
+        other = right_table.get(subject_id)
+        if other is None:
+            continue
+        if other["withdraw"] != change["withdraw"]:
+            continue
+        if not change["withdraw"] and other["target"] != change["target"]:
+            continue
+        common.append(copy.deepcopy(change))
+    return common
+
+
+
+def _change_identity(row):
+    to = row.get("to") or {}
+    return (
+        str(row.get("subject_alias") or ""),
+        str(row.get("action") or ""),
+        str(to.get("room") or ""),
+        str(to.get("day") or ""),
+        _clock(to.get("start")),
+        _clock(to.get("end")),
+        str(row.get("group_alias") or ""),
+    )
+
+
+def _option_diffs(changes, common_changes):
+    common_keys = {_change_identity(row) for row in common_changes or []}
+    if not common_keys:
+        return copy.deepcopy(changes or [])
+    return [copy.deepcopy(row) for row in changes or [] if _change_identity(row) not in common_keys]
+
+
+def _remaining_phrase(public, display):
+    items = (public.get("state_after") or {}).get("unresolved") or []
+    if not items:
+        return "无"
+    counts = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        alias = str(item.get("teacher_alias") or "")
+        name = str((display or {}).get(alias) or alias or "未排")
+        counts[name] = counts.get(name, 0) + 1
+    return "、".join(f"{name} {count} 节" for name, count in sorted(counts.items()))
+
+
+def _comparison_rows(options, teacher_days):
+    if len(options) < 2:
+        return []
+    rows = []
+    remaining = [str(item.get("_remaining") or "无") for item in options]
+    if len(set(remaining)) > 1:
+        rows.append({"label": "仍未安排", "values": remaining})
+    for day in teacher_days or []:
+        teacher = str(day.get("teacher") or "")
+        for row in day.get("rows") or []:
+            variants = row.get("variants") or {}
+            shown = []
+            for option in options:
+                room = variants.get(option["option_id"]) if option["option_id"] in variants else row.get("room")
+                shown.append(str(room) if room else "未排")
+            if len(set(shown)) > 1:
+                rows.append({
+                    "label": f"{teacher} {row.get('start') or ''}–{row.get('end') or ''}".strip(),
+                    "values": shown,
+                })
+    def metric_row(label, key):
+        values = []
+        for option in options:
+            count = int((option.get("metrics") or {}).get(key) or 0)
+            values.append("无" if count == 0 else f"{count} 节")
+        if len(set(values)) > 1:
+            rows.append({"label": label, "values": values})
+    metric_row("已有课移动", "moved_assignments")
+    metric_row("时间变化", "time_changed_assignments")
+    metric_row("牺牲", "sacrificed_assignments")
+    conflicts = []
+    for option in options:
+        count = int((option.get("metrics") or {}).get("hard_conflict_count") or 0)
+        conflicts.append("无" if count == 0 else f"{count} 项")
+    if len(set(conflicts)) > 1:
+        rows.append({"label": "硬冲突", "values": conflicts})
+    return rows
+
+
+def _previous_same_day_record(runtime, record):
+    plans = (getattr(runtime, "edit_session", None) or {}).get("reconciliation_plans") or {}
+    current_id = str(record.get("investigation_id") or "")
+    day = record.get("day")
+    candidates = []
+    if not isinstance(plans, dict):
+        return None
+    for item in plans.values():
+        if not isinstance(item, dict) or item.get("day") != day:
+            continue
+        if str(item.get("investigation_id") or "") == current_id:
+            continue
+        if not isinstance(item.get("brief"), dict):
+            continue
+        candidates.append(item)
+    if not candidates:
+        return None
+    candidates.sort(key=lambda item: str(item.get("created_at") or ""), reverse=True)
+    return candidates[0]
+
+
+def _revision_view(record, runtime, options, common):
+    protect = [str(item).strip() for item in (record.get("protect_teachers") or []) if str(item).strip()]
+    allow = [str(item).strip() for item in (record.get("allow_time_change_teachers") or []) if str(item).strip()]
+    instruction = str(record.get("goal") or "").strip()
+    effects = []
+    if protect:
+        effects.append({"code": "protect_applied", "text": f"已转为硬约束：保护 {'、'.join(protect)} 当天已有安排。"})
+    if allow:
+        effects.append({"code": "time_change_applied", "text": f"已转为硬约束：允许 {'、'.join(allow)} 改时间。"})
+    previous = _previous_same_day_record(runtime, record)
+    if previous:
+        prev_brief = previous.get("brief") or {}
+        prev_sims = previous.get("simulations") if isinstance(previous.get("simulations"), dict) else {}
+        prev_count = 0
+        for key in (prev_brief.get("primary_simulation_id"), prev_brief.get("fallback_simulation_id")):
+            public = (prev_sims.get(str(key or "")) or {}).get("public") or {}
+            if public.get("status") in {"feasible", "conditional"}:
+                prev_count += 1
+        new_count = len(options)
+        if prev_count > new_count:
+            effects.append({"code": "option_eliminated", "text": f"新约束下可行方案从 {prev_count} 个变为 {new_count} 个。"})
+        prev_primary = (prev_sims.get(str(prev_brief.get("primary_simulation_id") or "")) or {}).get("public") or {}
+        prev_fallback = (prev_sims.get(str(prev_brief.get("fallback_simulation_id") or "")) or {}).get("public") or {}
+        prev_common = []
+        if prev_count >= 2:
+            prev_common = _common_normalized(
+                prev_primary.get("normalized_changes") or [],
+                prev_fallback.get("normalized_changes") or [],
+            )
+        new_common = (common or {}).get("changes") or []
+        if prev_common and new_common:
+            if len(prev_common) == len(new_common):
+                effects.append({"code": "common_kept", "text": "共同部分仍然可行。"})
+            else:
+                effects.append({"code": "common_changed", "text": "共同部分有变化，需要重新确认。"})
+        elif prev_common and not new_common:
+            effects.append({"code": "common_lost", "text": "此前的共同部分在新约束下不再成立。"})
+        elif instruction and not any(item["code"] == "option_eliminated" for item in effects):
+            effects.append({"code": "continued", "text": "在同一条决定上继续调查；可行方案集合没有因新约束改变。"})
+    if not effects:
+        return None
+    return {
+        "instruction": instruction,
+        "protect_teachers": protect,
+        "allow_time_change_teachers": allow,
+        "effects": effects,
+    }
+
+
+def build_decision_brief(record, runtime):
+    """Project a persisted investigation into the operator Decision Brief view.
+
+    Facts (options, common part, teacher days, room views, counts) are derived
+    from the Python snapshot and stored simulations only. Model prose is
+    confined to focus.question, unknowns, and agent_note, which the brief
+    validator keeps in plain operator language. Returns None when the record
+    cannot be rehydrated — the Decision Brief must never block advice.
+    """
+    try:
+        investigation = ReconciliationInvestigation.from_persisted(record, runtime)
+    except Exception:
+        return None
+    brief = record.get("brief") if isinstance(record.get("brief"), dict) else None
+    if not brief:
+        return None
+    snapshot = investigation._snapshot or {}
+    rules = snapshot.get("rules") or {}
+    simulations = record.get("simulations") if isinstance(record.get("simulations"), dict) else {}
+
+    def public_of(simulation_id):
+        item = simulations.get(str(simulation_id))
+        return item.get("public") if isinstance(item, dict) and isinstance(item.get("public"), dict) else None
+
+    options = []
+    for option_id, source, simulation_id in (
+        ("a", "primary", brief.get("primary_simulation_id")),
+        ("b", "fallback", brief.get("fallback_simulation_id")),
+    ):
+        if not simulation_id:
+            continue
+        public = public_of(simulation_id)
+        if not public or public.get("status") not in {"feasible", "conditional"}:
+            continue
+        options.append({
+            "option_id": option_id,
+            "source": source,
+            "simulation_id": str(simulation_id),
+            "changes": copy.deepcopy(public.get("changes") or []),
+            "metrics": copy.deepcopy(public.get("metrics") or {}),
+            "required_teacher_aliases": [
+                str(item.get("teacher_alias") or "")
+                for item in (public.get("required_teacher_confirmations") or [])
+                if isinstance(item, dict) and item.get("teacher_alias")
+            ],
+            "sacrifice_aliases": [
+                str(item.get("subject_alias") or "")
+                for item in (public.get("sacrifices") or [])
+                if isinstance(item, dict) and item.get("subject_alias")
+            ],
+            "_outcome": _outcome_key(public),
+            "_normalized": copy.deepcopy(public.get("normalized_changes") or []),
+            "_remaining": _remaining_phrase(public, investigation._teacher_display or {}),
+        })
+    if len(options) == 2 and options[0]["_outcome"] == options[1]["_outcome"]:
+        # Identical outcomes are one choice, not two.
+        options = options[:1]
+
+    common = None
+    common_changes = []
+    if len(options) == 2:
+        common_normalized = _common_normalized(options[0]["_normalized"], options[1]["_normalized"])
+        if common_normalized:
+            common_aliases = {str(item.get("subject_alias") or "") for item in common_normalized}
+            # changes rows are keyed by raw subject id with the alias in
+            # group_alias; normalized_changes are alias-addressed. Match both.
+            common_ids = set(common_aliases)
+            for alias in common_aliases:
+                mapping = investigation._alias_to_subject.get(alias)
+                if mapping:
+                    common_ids.add(str(mapping[1]))
+            common_changes = [
+                row for row in options[0]["changes"]
+                if str(row.get("subject_alias") or "") in common_ids
+                or str(row.get("group_alias") or "") in common_aliases
+            ]
+            common = {
+                "changes": copy.deepcopy(common_changes),
+                "required_teacher_aliases": sorted(
+                    set(options[0]["required_teacher_aliases"]) & set(options[1]["required_teacher_aliases"])
+                ),
+                "sacrifice_aliases": sorted(
+                    set(options[0]["sacrifice_aliases"]) & set(options[1]["sacrifice_aliases"])
+                ),
+            }
+    for option in options:
+        option["diffs"] = _option_diffs(option.get("changes") or [], common_changes)
+
+    teacher_days = _decision_teacher_days(investigation, options)
+    room_views = _decision_room_views(investigation, options)
+    comparison = _comparison_rows(options, teacher_days)
+    revision = _revision_view(record, runtime, options, common)
+
+    unknowns = [
+        {"subject": str(item.get("subject") or ""), "note": str(item.get("note") or "")}
+        for item in (brief.get("unknowns") or [])
+        if isinstance(item, dict)
+    ]
+    if brief.get("termination") == "no_feasible_package_found" or not options:
+        status = "no_package"
+    elif len(options) >= 2:
+        status = "choice"
+    elif unknowns:
+        status = "missing_info"
+    else:
+        status = "ready"
+    question = str(brief.get("focus_question") or "").strip() or {
+        "ready": "这个方案已经通过验证，可以直接执行。",
+        "choice": "需要在两个可行方案之间做选择。",
+        "missing_info": "还缺少可能改变结论的信息，暂不宜直接执行。",
+        "no_package": "当前没有可行的完整方案。",
+    }[status]
+    for option in options:
+        option.pop("_outcome", None)
+        option.pop("_normalized", None)
+        option.pop("_remaining", None)
+    return {
+        "focus": {"question": question, "status": status},
+        "options": options,
+        "common": common,
+        "comparison": comparison,
+        "revision": revision,
+        "teacher_days": teacher_days,
+        "room_views": room_views,
+        "unknowns": unknowns,
+        "agent_note": str(brief.get("agent_note") or "").strip(),
+    }
+
+
+def _decision_teacher_days(investigation, options):
+    """Compact per-teacher day rows for teachers touched by the options.
+
+    Includes unchanged lessons so the operator sees each affected teacher's
+    whole day, not only the moved rows.
+    """
+    snapshot = investigation._snapshot or {}
+    day = investigation.day
+    display = investigation._teacher_display or {}
+    change_maps = {}
+    for option in options:
+        change_maps[option["option_id"]] = {
+            str(row.get("subject_alias") or ""): row
+            for row in option.get("changes") or []
+            if isinstance(row, dict)
+        }
+    involved = []
+    for option in options:
+        for row in option.get("changes") or []:
+            teacher = str(row.get("teacher") or "").strip()
+            if teacher and teacher not in involved:
+                involved.append(teacher)
+    if not involved:
+        return []
+
+    def variant_rooms(subject_id, base_room):
+        variants = {}
+        for option in options:
+            row = change_maps[option["option_id"]].get(subject_id)
+            if row is None:
+                variants[option["option_id"]] = base_room or None
+            elif row.get("action") == "withdraw":
+                variants[option["option_id"]] = None
+            else:
+                to = row.get("to") or {}
+                variants[option["option_id"]] = str(to.get("room") or "") or None
+        return variants
+
+    rows_by_teacher = {}
+    for event in snapshot.get("assignments") or []:
+        if not isinstance(event, dict) or _event_day(event) != day:
+            continue
+        teacher = _teacher(event)
+        if teacher not in involved:
+            continue
+        placement = _event_placement(event)
+        subject_id = str(event.get("id") or "")
+        variants = variant_rooms(subject_id, str(placement.get("room") or ""))
+        states = []
+        for option in options:
+            row = change_maps[option["option_id"]].get(subject_id)
+            states.append("withdrawn" if row and row.get("action") == "withdraw" else "moved" if row else "unchanged")
+        state = states[0] if len(set(states)) == 1 else "moved"
+        rows_by_teacher.setdefault(teacher, []).append({
+            "start": _clock(placement.get("start")),
+            "end": _clock(placement.get("end"), prefer_end=True),
+            "room": str(placement.get("room") or ""),
+            "label": investigation._event_label(event),
+            "state": state,
+            "variants": variants if len(options) == 2 else {},
+        })
+    for issue in snapshot.get("unassigned_lessons") or []:
+        if not isinstance(issue, dict):
+            continue
+        context = unresolved_assignment_primitives.build_context(issue)
+        teacher = str(context.get("instructor") or "").strip()
+        if teacher not in involved or context.get("original_day") != day:
+            continue
+        subject_id = unresolved_assignment_primitives.issue_id(issue)
+        variants = variant_rooms(subject_id, "")
+        states = []
+        for option in options:
+            row = change_maps[option["option_id"]].get(subject_id)
+            states.append("placed" if row and row.get("action") == "place" else "unplaced")
+        state = states[0] if len(set(states)) == 1 else "unplaced"
+        rows_by_teacher.setdefault(teacher, []).append({
+            "start": _clock(context.get("original_start")),
+            "end": _clock(context.get("original_end"), prefer_end=True),
+            "room": "",
+            "label": investigation._issue_label(issue),
+            "state": state,
+            "variants": variants if len(options) == 2 else {},
+        })
+    teacher_days = []
+    for teacher in involved:
+        rows = sorted(
+            rows_by_teacher.get(teacher) or [],
+            key=lambda row: (row["start"], row["end"]),
+        )
+        teacher_days.append({"teacher": teacher, "rows": rows})
+    return teacher_days
+
+
+def _decision_room_views(investigation, options):
+    """Room capability and same-day occupancy for rooms the options touch."""
+    snapshot = investigation._snapshot or {}
+    rules = snapshot.get("rules") or {}
+    day = investigation.day
+    rooms = []
+    instruments_by_room = {}
+    for option in options:
+        for row in option.get("changes") or []:
+            if not isinstance(row, dict):
+                continue
+            to = row.get("to") or {}
+            room = str(to.get("room") or "").strip() if row.get("action") != "withdraw" else ""
+            if not room:
+                room = str((row.get("from") or {}).get("room") or "").strip()
+            if not room or room in rooms:
+                if room:
+                    instruments_by_room.setdefault(room, set())
+                continue
+            rooms.append(room)
+            instruments_by_room.setdefault(room, set())
+    for option in options:
+        for row in option.get("changes") or []:
+            if not isinstance(row, dict):
+                continue
+            subject_id = str(row.get("subject_alias") or "")
+            instrument = _lesson_instrument(snapshot, subject_id)
+            to = row.get("to") or {}
+            room = str(to.get("room") or "").strip() if row.get("action") != "withdraw" else str((row.get("from") or {}).get("room") or "").strip()
+            if room and instrument:
+                instruments_by_room.setdefault(room, set()).add(instrument)
+    views = []
+    for room in rooms:
+        accepts = sorted({
+            instrument
+            for instrument in instruments_by_room.get(room) or set()
+            if _room_accepts(rules, room, instrument)
+        })
+        busy = []
+        for event in snapshot.get("assignments") or []:
+            if not isinstance(event, dict) or _event_day(event) != day:
+                continue
+            placement = _event_placement(event)
+            if str(placement.get("room") or "") != room:
+                continue
+            busy.append({
+                "start": _clock(placement.get("start")),
+                "end": _clock(placement.get("end"), prefer_end=True),
+                "label": _teacher(event),
+            })
+        views.append({
+            "room": room,
+            "accepts": accepts,
+            "busy": sorted(busy, key=lambda item: (item["start"], item["end"])),
+        })
+    return views
+
+
+def _lesson_instrument(snapshot, subject_id):
+    for event in snapshot.get("assignments") or []:
+        if isinstance(event, dict) and str(event.get("id") or "") == subject_id:
+            return _instrument(event)
+    for issue in snapshot.get("unassigned_lessons") or []:
+        if not isinstance(issue, dict):
+            continue
+        if unresolved_assignment_primitives.issue_id(issue) == subject_id:
+            context = unresolved_assignment_primitives.build_context(issue)
+            return context.get("instrument")
+    return None
+
+
 def get_reconciliation_public_record(context, runtime):
     plans = runtime.edit_session.get("reconciliation_plans")
     if not isinstance(plans, dict) or not plans:
@@ -971,6 +1569,7 @@ def get_reconciliation_public_record(context, runtime):
             current_snapshot_hash=current_hash,
         )
         if public:
+            public["decision_brief"] = build_decision_brief(record, runtime)
             return public
     return None
 
@@ -1006,6 +1605,7 @@ def apply_reconciliation(
     authorized_sacrifice_aliases=(),
     confirmed_confirmation_ids=(),
     note: str = "",
+    scope: str = "option",
 ):
     state, runtime, record = _rehydrate(context, investigation_id)
     current_hash = ReconciliationInvestigation.snapshot_hash_for_runtime(
@@ -1023,18 +1623,41 @@ def apply_reconciliation(
             "This reconciliation brief was rejected; investigate the day again before applying."
         )
     simulations = record.get("simulations") if isinstance(record.get("simulations"), dict) else {}
-    simulation = simulations.get(str(simulation_id))
-    if not isinstance(simulation, dict) or not isinstance(simulation.get("public"), dict):
-        raise PiReconciliationError("The selected reconciliation simulation is unavailable.")
-    public = simulation["public"]
-    if public.get("status") not in {"feasible", "conditional"}:
-        raise PiReconciliationError("Only a feasible or conditional simulation can be applied.")
-    selected_ids = {
-        str(brief.get("primary_simulation_id") or ""),
-        str(brief.get("fallback_simulation_id") or ""),
-    }
-    if str(simulation_id) not in selected_ids:
-        raise PiReconciliationError("The selected simulation is not part of the pursued brief.")
+    scope = str(scope or "option").strip()
+    apply_simulation_id = str(simulation_id or "")
+    raw_changes = []
+    if scope == "common":
+        # Apply only the shared part of the two options. Python re-validates the
+        # shared changes in a fresh simulation at apply time; the operator never
+        # needs the model to have pre-simulated the common package.
+        primary_public = (simulations.get(str(brief.get("primary_simulation_id") or "")) or {}).get("public") or {}
+        fallback_public = (simulations.get(str(brief.get("fallback_simulation_id") or "")) or {}).get("public") or {}
+        common = _common_normalized(
+            primary_public.get("normalized_changes") or [],
+            fallback_public.get("normalized_changes") or [],
+        )
+        if not common:
+            raise PiReconciliationError("这两个方案没有可单独执行的共同部分。")
+        fresh = investigation.simulate_package(common, human_revision=True)
+        if not fresh.get("feasible"):
+            raise PiReconciliationError("共同部分在重新验证时没有通过；请改用完整方案。")
+        public = fresh
+        apply_simulation_id = "common"
+        raw_changes = investigation.raw_changes_for(common)
+    else:
+        simulation = simulations.get(str(simulation_id))
+        if not isinstance(simulation, dict) or not isinstance(simulation.get("public"), dict):
+            raise PiReconciliationError("The selected reconciliation simulation is unavailable.")
+        public = simulation["public"]
+        if public.get("status") not in {"feasible", "conditional"}:
+            raise PiReconciliationError("Only a feasible or conditional simulation can be applied.")
+        selected_ids = {
+            str(brief.get("primary_simulation_id") or ""),
+            str(brief.get("fallback_simulation_id") or ""),
+        }
+        if str(simulation_id) not in selected_ids:
+            raise PiReconciliationError("The selected simulation is not part of the pursued brief.")
+        raw_changes = investigation.raw_changes_for(public.get("normalized_changes") or [])
     reverse_aliases = {
         str(alias): teacher
         for teacher, alias in (record.get("teacher_aliases") or {}).items()
@@ -1051,7 +1674,23 @@ def apply_reconciliation(
     submitted_ids = {
         str(item).strip() for item in (confirmed_confirmation_ids or []) if str(item).strip()
     }
-    if required_ids:
+    if scope == "common":
+        # The common package is re-validated at apply time, so its confirmation
+        # ids were never shown to the operator; confirm by teacher alias instead.
+        required_alias_set = {alias for alias in required_ids.values() if alias}
+        submitted_aliases = {
+            str(alias).strip() for alias in (confirmed_teacher_aliases or []) if str(alias).strip()
+        }
+        if required_alias_set - submitted_aliases:
+            raise PiReconciliationError(
+                "Every affected teacher must confirm the shared changes before apply."
+            )
+        confirmed_teachers = [
+            reverse_aliases[alias]
+            for alias in sorted(required_alias_set or submitted_aliases)
+            if alias in reverse_aliases
+        ]
+    elif required_ids:
         if set(required_ids) - submitted_ids:
             raise PiReconciliationError(
                 "Every affected teacher must confirm the exact reconciliation package before apply."
@@ -1082,7 +1721,6 @@ def apply_reconciliation(
             "This package leaves an already scheduled lesson unresolved; "
             "authorize each listed sacrifice before applying."
         )
-    raw_changes = investigation.raw_changes_for(public.get("normalized_changes") or [])
     authorized_ids = []
     for item in raw_changes:
         if not item.get("withdraw"):
@@ -1109,7 +1747,7 @@ def apply_reconciliation(
         record.update(investigation.persisted_record())
         record["operation_status"] = "applied"
         record["apply_result"] = {
-            "simulation_id": simulation_id,
+            "simulation_id": apply_simulation_id,
             "metrics": copy.deepcopy(public.get("metrics") or {}),
             "changes": investigation.applied_change_view(result.records),
             "sacrifices": copy.deepcopy(public.get("sacrifices") or []),

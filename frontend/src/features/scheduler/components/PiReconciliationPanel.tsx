@@ -13,94 +13,83 @@ import {
   type PiRuntime,
   type ResolutionAdvice,
 } from '../api'
-import { PHASE_LABELS } from '../operationPhases'
 import styles from '../resolutionPanel.module.css'
+import {
+  COPY,
+  fmt,
+  localizeFocusQuestion,
+  localizeRevisionEffect,
+  localizeServerLabel,
+  localizeServerValue,
+  readPiLocale,
+  writePiLocale,
+  type PiLocale,
+} from './piReconciliationCopy'
+
+type Copy = (typeof COPY)[PiLocale]
 
 type Investigation = NonNullable<ResolutionAdvice['pi_reconciliation']>
 type Simulation = Investigation['simulations'][number]
 type ChangeRow = Simulation['changes'][number]
-type OperationEvent = Operation['events'][number]
+type DecisionBrief = NonNullable<Investigation['decision_brief']>
+type DecisionOption = NonNullable<DecisionBrief['options']>[number]
 
 const PI_OPERATION_PARAM = 'pi_operation'
-
-const TERMINATION_LABELS: Record<string, string> = {
-  recommendation_ready: 'Investigation complete',
-  no_feasible_package_found: 'No feasible package found',
-  budget_exhausted: 'Exploration limit reached',
-  runtime_timeout: 'Runtime limit reached',
-  crash: 'Pi process exited unexpectedly',
-  interrupted: 'Investigation interrupted',
-  error: 'Investigation failed',
-}
-
-const TOOL_LABELS: Record<string, string> = {
-  inspect_reconciliation: 'inspect occupancy',
-  simulate_reconciliation_package: 'simulate package',
-  submit_reconciliation_brief: 'submit brief',
-}
-
-function progressEventLabel(event: OperationEvent): string {
-  const detail = event.detail ?? {}
-  switch (event.type) {
-    case 'investigation_started': return 'Investigation started'
-    case 'process_spawned': return 'Pi process started'
-    case 'first_agent_activity': return 'Pi first response'
-    case 'agent_alive': return 'Pi agent started'
-    case 'turn_activity': return 'Model working'
-    case 'model_tool_request': return `Model requested ${TOOL_LABELS[String(detail.tool)] ?? String(detail.tool ?? 'tool')}`
-    case 'model_tool_end': return 'Tool execution finished'
-    case 'provider_retry': return `Provider retry ${Number(detail.attempt ?? 0)}/${Number(detail.max_attempts ?? 0)}`
-    case 'provider_retry_end': return `Provider retry ${detail.success ? 'succeeded' : 'failed'}`
-    case 'inspection_started': return "Analyzing the day's schedule"
-    case 'inspection_completed': return 'Occupancy inspected'
-    case 'inspection_rejected': return `Inspection rejected by Python: ${String(detail.reason ?? '')}`
-    case 'simulation_started': return 'Simulating a candidate package'
-    case 'simulation_rejected': return `Package rejected by Python validation: ${String(detail.reason ?? '')}`
-    case 'first_valid_candidate': return 'Found a valid candidate'
-    case 'simulation_completed': return detail.feasible ? 'Candidate package is feasible' : 'Candidate package not feasible'
-    case 'brief_submitted': return 'Brief submitted'
-    case 'investigation_closed': return 'Investigation closed at a bound'
-    case 'investigation_interrupted': return 'Investigation stopped at a runtime bound'
-    case 'agent_settled': return 'Pi finished'
-    default: return event.label || event.type
-  }
-}
-
-function elapsedSeconds(operation: Operation): string {
-  if (!operation.started_at) return ''
-  const end = operation.last_activity_at ?? operation.started_at
-  const ms = Date.parse(end) - Date.parse(operation.started_at)
-  if (!Number.isFinite(ms) || ms < 0) return ''
-  return (ms / 1000).toFixed(1)
-}
-
-function resultNumber(result: Operation['result'], key: string): number | null {
-  const value = result?.[key]
-  return typeof value === 'number' && Number.isFinite(value) ? value : null
-}
-
-function operationMetrics(operation: Operation): string {
-  const count = (key: string): number | null => resultNumber(operation.result, key)
-  const plural = (value: number | null, singular: string): string | null =>
-    value === null ? null : `${value} ${singular}${value === 1 ? '' : 's'}`
-  const parts = [
-    count('latency_ms') !== null ? `took ${(count('latency_ms')! / 1000).toFixed(1)}s` : null,
-    plural(count('tool_calls'), 'tool call'),
-    plural(count('simulation_count'), 'candidate package'),
-    count('rejected_candidates') ? `${count('rejected_candidates')} rejected by Python` : null,
-    plural(count('valid_candidates'), 'usable candidate'),
-  ]
-  return parts.filter(Boolean).join(' · ')
-}
-
-const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 type Props = {
   activeDay: number
   disabled: boolean
   investigation: Investigation | null | undefined
+  isReadingExpanded?: boolean
+  onToggleReadingExpanded?: () => void
   piRuntime?: PiRuntime | null
   workspaceVersion: string | null
+}
+
+function statusLabel(c: Copy, key: string): string {
+  return ({
+    ready: c.statusReady,
+    choice: c.statusChoice,
+    missing_info: c.statusMissing,
+    no_package: c.statusNoPackage,
+  }[key] ?? key)
+}
+
+function optionLabelFor(c: Copy, optionId: string): string {
+  if (optionId === 'a') return c.optionA
+  if (optionId === 'b') return c.optionB
+  return fmt(c.optionGeneric, { id: optionId.toUpperCase() })
+}
+
+function terminationLabel(c: Copy, key: string): string {
+  return ({
+    recommendation_ready: c.termReady,
+    no_feasible_package_found: c.termNoPackage,
+    budget_exhausted: c.termBudget,
+    runtime_timeout: c.termTimeout,
+    crash: c.termCrash,
+    interrupted: c.termInterrupted,
+    error: c.termError,
+  }[key] ?? key)
+}
+
+function phaseLabel(c: Copy, key: string): string {
+  return ({
+    queued: c.phaseQueued,
+    preflight: c.phasePreflight,
+    investigating: c.phaseInvestigating,
+    saving_reconciliation: c.phaseSaving,
+    completed: c.phaseCompleted,
+    failed: c.phaseFailed,
+  }[key] ?? key)
+}
+
+function pendingKindLabel(c: Copy, kind: string | undefined): string {
+  return ({
+    business_tradeoff: c.pendingTradeoff,
+    missing_fact: c.pendingFact,
+    exception_authorization: c.pendingException,
+  }[kind ?? ''] ?? c.pendingDefault)
 }
 
 type RuntimeChoice = { provider: string; model: string }
@@ -124,40 +113,84 @@ function runtimeChoices(runtime?: PiRuntime | null): RuntimeChoice[] {
   return fallback.map((model) => ({ provider: runtime?.provider ?? '', model }))
 }
 
+function elapsedSeconds(operation: Operation, now = Date.now()): string {
+  if (!operation.started_at) return ''
+  const startedMs = Date.parse(operation.started_at)
+  if (!Number.isFinite(startedMs)) return ''
+
+  const isTerminal = operation.status === 'completed' || operation.status === 'failed' || operation.phase === 'completed' || operation.phase === 'failed'
+  if (isTerminal) {
+    const latencyMs = resultNumber(operation.result, 'latency_ms')
+    if (latencyMs !== null && latencyMs >= 0) {
+      return (latencyMs / 1000).toFixed(1)
+    }
+    const end = operation.last_activity_at ?? operation.started_at
+    const endMs = Date.parse(end)
+    if (Number.isFinite(endMs) && endMs >= startedMs) {
+      return ((endMs - startedMs) / 1000).toFixed(1)
+    }
+    return ''
+  }
+
+  const ms = Math.max(0, now - startedMs)
+  return (ms / 1000).toFixed(1)
+}
+
+function resultNumber(result: Operation['result'], key: string): number | null {
+  const value = result?.[key]
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+/** Latest human-meaningful phase derived from raw events. */
+function humanPhase(operation: Operation, c: Copy): string {
+  const events = operation.events
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const type = events[index].type
+    if (type === 'simulation_started' || type === 'simulation_rejected' || type === 'first_valid_candidate' || type === 'simulation_completed') {
+      return c.validating
+    }
+    if (type === 'inspection_started' || type === 'inspection_completed') {
+      return c.inspecting
+    }
+  }
+  return phaseLabel(c, operation.phase)
+}
+
+function operationStatusLabel(operation: Operation, c: Copy): string {
+  const isCompleted = operation.status === 'completed' || operation.phase === 'completed'
+  if (isCompleted) {
+    const termination = operation.result?.termination ? String(operation.result.termination) : ''
+    return termination ? terminationLabel(c, termination) : c.termReady
+  }
+  if (operation.status === 'failed' || operation.phase === 'failed') return c.phaseFailed
+  if (operation.status === 'timeout') return c.termTimeout
+  return humanPhase(operation, c)
+}
+
+function operationMetrics(operation: Operation, c: Copy): string {
+  const count = (key: string): number | null => resultNumber(operation.result, key)
+  const parts = [
+    count('simulation_count') !== null ? fmt(c.metricsSim, { n: count('simulation_count') ?? 0 }) : null,
+    count('valid_candidates') !== null ? fmt(c.metricsValid, { n: count('valid_candidates') ?? 0 }) : null,
+    count('rejected_candidates') ? fmt(c.metricsRejected, { n: count('rejected_candidates') ?? 0 }) : null,
+    count('tool_calls') !== null ? fmt(c.metricsTools, { n: count('tool_calls') ?? 0 }) : null,
+  ]
+  return parts.filter(Boolean).join(' · ')
+}
+
 function clock(value: unknown): string {
   const text = String(value ?? '')
   return text.length >= 5 ? text.slice(0, 5) : text
 }
 
-function placement(value: ChangeRow['from']): string {
-  if (!value) return '—'
-  const day = typeof value.day === 'number' ? `${dayNames[value.day] ?? value.day} ` : ''
-  const room = value.room ? String(value.room) : 'Unplaced'
-  return `${day}${clock(value.start)}–${clock(value.end)} · ${room}`
+function roomLabel(room: unknown, unplaced: string): string {
+  const text = String(room ?? '').trim()
+  return text || unplaced
 }
 
-function simulationHeadline(metrics: Record<string, unknown>): string {
-  const parts = [
-    `${Number(metrics.resolved_delta ?? 0)} newly placed`,
-    `${Number(metrics.remaining_unresolved ?? 0)} still unplaced`,
-  ]
-  if (Number(metrics.moved_assignments ?? 0)) parts.push(`${Number(metrics.moved_assignments)} moved`)
-  if (Number(metrics.room_switches ?? 0)) parts.push(`${Number(metrics.room_switches)} room switches`)
-  if (Number(metrics.sacrificed_assignments ?? 0)) parts.push(`${Number(metrics.sacrificed_assignments)} sacrificed`)
-  return parts.join(' · ')
-}
-
-function remainingSummary(who: string, label: string): string {
-  const name = String(label || '').replace(/^👤\s*/u, '').replace(/\s*\([^)]*\)\s*$/u, '').trim()
-  if (who && name && (name === who || name.includes(who))) return who
-  return [who, name].filter(Boolean).join(' · ')
-}
-
-type MoveSource = {
-  action?: string
-  teacher?: string | null
-  from?: { room?: string | null; start?: string | null; end?: string | null } | null
-  to?: { room?: string | null; start?: string | null; end?: string | null } | null
+function placement(value: ChangeRow['from'], c: Copy): string {
+  if (!value) return c.unplacedLesson
+  return `${clock(value.start)}–${clock(value.end)} · ${roomLabel(value.room, c.unplaced)}`
 }
 
 type TeacherMove = {
@@ -175,16 +208,16 @@ function toMinutes(value: string): number | null {
   return Number(match[1]) * 60 + Number(match[2])
 }
 
-function groupTeacherMoves(changes: MoveSource[] | undefined): TeacherMove[] {
+function groupTeacherMoves(changes: ChangeRow[] | undefined, c: Copy): TeacherMove[] {
   const rows = (changes ?? []).map((row) => {
     const withdrawn = row.action === 'withdraw'
     return {
       action: withdrawn ? 'withdraw' : row.action === 'place' ? 'place' : 'move',
       end: clock(row.from?.end ?? row.to?.end),
-      fromRoom: withdrawn || row.from?.room ? String(row.from?.room || 'Unplaced') : 'Unplaced',
+      fromRoom: roomLabel(row.from?.room, c.unplaced),
       start: clock(row.from?.start ?? row.to?.start),
       teacher: String(row.teacher || '—').trim() || '—',
-      toRoom: withdrawn ? 'Unplaced' : String(row.to?.room || 'Unplaced'),
+      toRoom: withdrawn ? c.withdrawn : roomLabel(row.to?.room, c.unplaced),
     }
   }).sort((left, right) => {
     if (left.teacher !== right.teacher) return left.teacher.localeCompare(right.teacher)
@@ -213,8 +246,8 @@ function moveLine(move: TeacherMove): string {
   return `${move.teacher}  ${move.start}–${move.end}  ${move.fromRoom} → ${move.toRoom}`
 }
 
-function teacherMoveList(changes: MoveSource[] | undefined, label: string) {
-  const moves = groupTeacherMoves(changes)
+function changeList(changes: ChangeRow[] | undefined, label: string, c: Copy) {
+  const moves = groupTeacherMoves(changes, c)
   if (!moves.length) return null
   return <ul aria-label={label} className={styles.remainingSummaries}>
     {moves.map((move) => <li key={`${move.teacher}:${move.start}:${move.fromRoom}:${move.toRoom}`}>{moveLine(move)}</li>)}
@@ -224,50 +257,98 @@ function teacherMoveList(changes: MoveSource[] | undefined, label: string) {
 function remainingTeacherLines(
   items: Array<{ label?: string; subject_alias?: string; teacher_alias?: string | null }>,
   names: Record<string, string>,
+  c: Copy,
 ): { key: string; text: string }[] {
   const groups = new Map<string, string[]>()
   for (const item of items) {
     const who = String(names[item.teacher_alias ?? ''] || item.teacher_alias || '—')
-    const name = remainingSummary('', String(item.label || ''))
+    const name = String(item.label || '').replace(/^👤\s*/u, '').replace(/\s*\([^)]*\)\s*$/u, '').trim()
     const list = groups.get(who) ?? []
     if (name && !list.includes(name)) list.push(name)
     groups.set(who, list)
   }
   return [...groups.entries()].map(([who, labels]) => ({
     key: who,
-    text: labels.length > 0 && labels.length <= 2 ? remainingSummary(who, labels.join(', ')) : `${who} · ${Math.max(labels.length, 1)} lessons`,
+    text: labels.length > 0 && labels.length <= 2 ? [who, ...labels].filter(Boolean).join(' · ') : `${who} · ${Math.max(labels.length, 1)} ${c.lessons}`,
   }))
 }
 
-function publicTitle(title: string | undefined, fallback: string): string {
-  const text = String(title || '').trim()
-  if (!text || /\b(block|issue|teacher|assignment)-\d+\b/i.test(text)) return fallback
-  return text
+const NAME_SKIP = new Set(['mr', 'ms', 'mrs', 'dr', 'miss'])
+
+function nameMentioned(text: string, name: string): boolean {
+  const folded = text.toLowerCase()
+  if (folded.includes(name.toLowerCase())) return true
+  return name.split(/[\s.]+/).some((part) => part.length >= 3 && !NAME_SKIP.has(part.toLowerCase()) && folded.includes(part.toLowerCase()))
 }
 
-function pendingKindLabel(kind: string | undefined): string {
-  if (kind === 'business_tradeoff') return 'Business trade-off'
-  if (kind === 'missing_fact') return 'Missing fact'
-  if (kind === 'exception_authorization') return 'Exception authorization'
-  return 'Needs your decision'
+export function extractOperatorConstraints(text: string, teachers: string[]): { protect: string[]; allow: string[] } {
+  const names = [...new Set(teachers.map((item) => item.trim()).filter(Boolean))].sort((left, right) => right.length - left.length)
+  const protect: string[] = []
+  const allow: string[] = []
+  const source = text.trim()
+  if (!source || !names.length) return { protect, allow }
+  const clauses = source.split(/[，。；;\n]+/).map((item) => item.trim()).filter(Boolean)
+  for (const clause of clauses.length ? clauses : [source]) {
+    const folded = clause.toLowerCase()
+    const full = names.filter((name) => folded.includes(name.toLowerCase()))
+    const hits = full.length ? full : names.filter((name) => nameMentioned(clause, name))
+    const mentioned = hits.filter((name) => !hits.some((other) => other !== name && other.toLowerCase().includes(name.toLowerCase())))
+    if (!mentioned.length) continue
+    if (/不要动|别动|不许动|保护|先不动/.test(clause)) {
+      for (const name of mentioned) if (!protect.includes(name)) protect.push(name)
+    }
+    if (/改时|改时间/.test(clause)) {
+      for (const name of mentioned) if (!allow.includes(name)) allow.push(name)
+    }
+  }
+  return { protect, allow }
 }
 
-function pendingList(
-  pending: Array<{ kind?: string; detail?: string; teacher_alias?: string | null }> | undefined,
-  names: Record<string, string>,
-) {
-  const items = pending ?? []
-  if (!items.length) return null
-  return <div>
-    <small>Decisions needed:</small>
-    <ul>{items.map((item, index) => {
-      const who = item.teacher_alias ? names[item.teacher_alias] : ''
-      return <li key={`pending-${index}`}>{[pendingKindLabel(item.kind), who].filter(Boolean).join(' · ')}</li>
-    })}</ul>
-  </div>
+/**
+ * Older investigations may predate decision_brief. Synthesize the same shape
+ * from the verified simulations so one render path covers both.
+ */
+function resolveDecisionBrief(investigation: Investigation | null | undefined): DecisionBrief | null {
+  if (!investigation) return null
+  if (investigation.decision_brief) return investigation.decision_brief
+  const brief = investigation.brief
+  const candidates = (investigation.simulations ?? []).filter((sim) => sim.feasible)
+  if (!brief || !candidates.length) return null
+  const options = candidates.slice(0, 2).map((sim, index): DecisionOption => ({
+    option_id: index === 0 ? 'a' : 'b',
+    source: index === 0 ? 'primary' : 'fallback',
+    simulation_id: sim.simulation_id,
+    changes: sim.changes ?? [],
+    diffs: sim.changes ?? [],
+    metrics: sim.metrics ?? {},
+    required_teacher_aliases: (sim.required_teacher_confirmations ?? []).map((item) => item.teacher_alias),
+    sacrifice_aliases: (sim.sacrifices ?? []).map((item) => item.subject_alias),
+  }))
+  return {
+    focus: {
+      question: brief.focus_question || '如何安排当天剩余的课？',
+      status: options.length > 1 ? 'choice' : 'ready',
+    },
+    options,
+    common: null,
+    comparison: [],
+    revision: null,
+    teacher_days: [],
+    room_views: [],
+    unknowns: [],
+    agent_note: brief.agent_note ?? '',
+  }
 }
 
-export function PiReconciliationPanel({ activeDay, disabled, investigation, piRuntime, workspaceVersion }: Props) {
+export function PiReconciliationPanel({
+  activeDay,
+  disabled,
+  investigation,
+  isReadingExpanded,
+  onToggleReadingExpanded,
+  piRuntime,
+  workspaceVersion,
+}: Props) {
   const queryClient = useQueryClient()
   const choices = runtimeChoices(piRuntime)
   const defaultChoice = piRuntime?.provider && piRuntime?.model
@@ -284,10 +365,12 @@ export function PiReconciliationPanel({ activeDay, disabled, investigation, piRu
   const [searchParams, setSearchParams] = useSearchParams()
   const [operationId, setOperationId] = useState(() => searchParams.get(PI_OPERATION_PARAM) ?? '')
   const [note, setNote] = useState('')
+  const [locale, setLocale] = useState<PiLocale>(readPiLocale)
+  const c = COPY[locale]
   const [goal, setGoal] = useState('')
-  const [confirmedBySimulation, setConfirmedBySimulation] = useState<Record<string, string[]>>({})
-  const [sacrificesBySimulation, setSacrificesBySimulation] = useState<Record<string, string[]>>({})
-  const [fallbackForInvestigation, setFallbackForInvestigation] = useState('')
+  const [chosenOptionId, setChosenOptionId] = useState('')
+  const [confirmedByTarget, setConfirmedByTarget] = useState<Record<string, string[]>>({})
+  const [sacrificesByTarget, setSacrificesByTarget] = useState<Record<string, string[]>>({})
   const operationQuery = useQuery({
     queryKey: ['pi-reconciliation-operation', operationId],
     queryFn: ({ signal }) => getOperation(operationId, signal),
@@ -299,14 +382,30 @@ export function PiReconciliationPanel({ activeDay, disabled, investigation, piRu
   })
   const operationNotFound = (operationQuery.error as ApiClientError | null)?.code === 'OPERATION_NOT_FOUND'
   const operation = operationNotFound ? undefined : operationQuery.data?.data
+  const isOperationActive = operation?.status === 'queued' || operation?.status === 'running'
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    if (!isOperationActive) return
+    setNow(Date.now())
+    const interval = setInterval(() => {
+      setNow(Date.now())
+    }, 100)
+    return () => clearInterval(interval)
+  }, [isOperationActive, operation?.id])
+
   const startMutation = useMutation({
     mutationFn: () => {
       if (!workspaceVersion) throw new Error('Workspace version unavailable')
       const selected = parseChoice(choice)
+      const names = Object.values(investigation?.teacher_display ?? {}).filter(Boolean)
+      const converted = extractOperatorConstraints(goal, names)
       return investigateReconciliation(selected.model, workspaceVersion, activeDay, {
         goal,
         provider: selected.provider,
         thinkingLevel: thinking,
+        protectInstructors: converted.protect,
+        allowTimeChangeInstructors: converted.allow,
       })
     },
     onSuccess: (response) => {
@@ -329,22 +428,81 @@ export function PiReconciliationPanel({ activeDay, disabled, investigation, piRu
       void queryClient.invalidateQueries({ queryKey: schedulerResolutionKey })
     },
   })
+
+  const decisionBrief = resolveDecisionBrief(investigation)
+  const brief = investigation?.brief
+  const simulations = investigation?.simulations ?? []
+  const options = decisionBrief?.options ?? []
+  const common = decisionBrief?.common ?? null
+  const chosenOption = options.find((item) => item.option_id === chosenOptionId) ?? options[0]
+  const teacherNames = investigation?.teacher_display ?? {}
+  const teacherName = (alias: string) => teacherNames[alias] ?? alias
+
+  const optionTargetKey = (option: DecisionOption) => `option:${option.option_id}`
+  const commonTargetKey = 'common'
+  const confirmedFor = (key: string) => confirmedByTarget[key] ?? []
+  const sacrificesFor = (key: string) => sacrificesByTarget[key] ?? []
+  const setConfirmedFor = (key: string, next: string[]) => setConfirmedByTarget((current) => ({ ...current, [key]: next }))
+  const setSacrificesFor = (key: string, next: string[]) => setSacrificesByTarget((current) => ({ ...current, [key]: next }))
+
+  function requiredTeachers(option: DecisionOption): string[] {
+    if (option.required_teacher_aliases?.length) return option.required_teacher_aliases
+    const sim = simulations.find((item) => item.simulation_id === option.simulation_id)
+    return (sim?.required_teacher_confirmations ?? []).map((item) => item.teacher_alias)
+  }
+
+  function sacrificeAliases(option: DecisionOption): string[] {
+    if (option.sacrifice_aliases?.length) return option.sacrifice_aliases
+    const sim = simulations.find((item) => item.simulation_id === option.simulation_id)
+    return (sim?.sacrifices ?? []).map((item) => item.subject_alias)
+  }
+
+  function isConfirmed(key: string, aliases: string[], authorized: string[], sacrificeAliases: string[]): boolean {
+    return aliases.every((alias) => confirmedFor(key).includes(alias))
+      && sacrificeAliases.every((alias) => authorized.includes(alias))
+  }
+
   const applyMutation = useMutation({
     mutationFn: () => {
       if (!workspaceVersion || !investigation?.investigation_id) throw new Error('Investigation unavailable')
-      const target = useFallback ? fallback : primary
-      if (!target) throw new Error('No recommendation is available')
-      const confirmationIds = (target.required_teacher_confirmations ?? [])
+      if (!chosenOption) throw new Error('No option is available')
+      const sim = simulations.find((item) => item.simulation_id === chosenOption.simulation_id)
+      const key = optionTargetKey(chosenOption)
+      const confirmed = confirmedFor(key)
+      const confirmationIds = (sim?.required_teacher_confirmations ?? [])
         .filter((item) => confirmed.includes(item.teacher_alias))
         .map((item) => item.confirmation_id)
       return applyReconciliation(
         investigation.investigation_id,
-        target.simulation_id,
+        chosenOption.simulation_id,
         workspaceVersion,
         confirmed,
-        authorizedSacrifices,
+        sacrificesFor(key),
         note,
         confirmationIds,
+        'option',
+      )
+    },
+    onSuccess: (response) => {
+      queryClient.setQueryData([...schedulerResolutionKey, response.workspace_version], response)
+      void queryClient.invalidateQueries({ queryKey: schedulerSessionKey })
+      setGoal('')
+    },
+  })
+
+  const applyCommonMutation = useMutation({
+    mutationFn: () => {
+      if (!workspaceVersion || !investigation?.investigation_id) throw new Error('Investigation unavailable')
+      if (!common) throw new Error('No common part is available')
+      return applyReconciliation(
+        investigation.investigation_id,
+        '',
+        workspaceVersion,
+        confirmedFor(commonTargetKey),
+        sacrificesFor(commonTargetKey),
+        note,
+        [],
+        'common',
       )
     },
     onSuccess: (response) => {
@@ -371,182 +529,508 @@ export function PiReconciliationPanel({ activeDay, disabled, investigation, piRu
     }, { replace: true })
   }, [operationId, operationNotFound, setSearchParams])
 
-  const simulations = investigation?.simulations ?? []
-  const brief = investigation?.brief
-  const primary = simulations.find((item) => item.simulation_id === brief?.primary_simulation_id)
-  const fallback = simulations.find((item) => item.simulation_id === brief?.fallback_simulation_id)
-  const useFallback = fallbackForInvestigation === investigation?.investigation_id
-  const recommended = useFallback && fallback ? fallback : primary
-  const recommendedId = recommended?.simulation_id ?? ''
-  const confirmed = confirmedBySimulation[recommendedId] ?? []
-  const authorizedSacrifices = sacrificesBySimulation[recommendedId] ?? []
-  const setConfirmed = (next: string[]) => setConfirmedBySimulation((current) => ({ ...current, [recommendedId]: next }))
-  const setAuthorizedSacrifices = (next: string[]) => setSacrificesBySimulation((current) => ({ ...current, [recommendedId]: next }))
-  const requiredAliases = (recommended?.required_teacher_confirmations ?? []).map((item) => item.teacher_alias)
-  const requiredSacrifices = (recommended?.sacrifices ?? []).map((item) => item.subject_alias)
-  const teacherNames = investigation?.teacher_display ?? {}
   const active = disabled
     || startMutation.isPending
     || rejectMutation.isPending
     || applyMutation.isPending
+    || applyCommonMutation.isPending
     || operation?.status === 'queued'
     || operation?.status === 'running'
-  const error = (startMutation.error ?? rejectMutation.error ?? applyMutation.error ?? (operationNotFound ? null : operationQuery.error)) as ApiClientError | null
+  const error = (startMutation.error ?? rejectMutation.error ?? applyMutation.error ?? applyCommonMutation.error ?? (operationNotFound ? null : operationQuery.error)) as ApiClientError | null
   const status = investigation?.status
-  const interrupted = brief?.termination === 'budget_exhausted'
-  const interruptedHint = status === 'timeout'
-    ? 'The investigation was cut off by the runtime limit. Verified packages remain applicable; the uncovered part needs a new investigation.'
-    : 'The investigation was cut off by the internal limit before full coverage. Verified packages remain applicable; the uncovered part needs a new investigation.'
+  const isRuntimeTimeout = status === 'timeout' || (brief?.termination as string) === 'runtime_timeout'
+  const interrupted = (brief?.termination as string) === 'budget_exhausted' || status === 'timeout' || status === 'interrupted' || isRuntimeTimeout
   const applied = status === 'applied'
   const applyResult = investigation?.apply_result ?? null
   const stale = Boolean(investigation?.stale) && !applied
+  const lastInstruction = String(investigation?.task?.goal || '').trim()
+  const remaining = brief?.remaining_issues ?? []
+  const pendingMutationError = error
 
   function toggle(list: string[], setList: (next: string[]) => void, value: string, checked: boolean) {
     setList(checked ? [...list, value] : list.filter((item) => item !== value))
   }
 
-  function changeSide(simulation: Simulation | undefined) {
-    if (!simulation?.changes?.length) return null
+  /** Per-lesson change table — Inspect layer, never the default view. */
+  function lessonDetails(changes: ChangeRow[] | undefined, caption: string) {
+    if (!changes?.length) return null
+    return <details className={styles.piHistory}>
+      <summary>{c.inspect}</summary>
+      <table className={styles.changeTable}>
+        <caption>{caption}</caption>
+        <thead><tr><th>{c.colTeacher}</th><th>{c.colLesson}</th><th>{c.colFrom}</th><th>{c.colTo}</th><th>{c.colNote}</th></tr></thead>
+        <tbody>
+          {changes.map((row) => <tr key={`${row.group_alias}-${row.subject_alias}`}>
+            <td>{row.teacher || '—'}</td>
+            <td>{row.label || row.subject_alias}{row.group_size > 1 ? <small>{fmt(c.teacherDayBlock, { n: row.group_size })}</small> : null}</td>
+            <td>{placement(row.from, c)}</td>
+            <td>{row.action === 'withdraw' ? c.withdrawnSacrifice : placement(row.to, c)}</td>
+            <td>{[
+              row.action === 'place' ? c.place : row.action === 'withdraw' ? c.withdraw : c.move,
+              row.room_changed && row.action !== 'withdraw' ? c.roomChange : '',
+              row.time_changed ? c.timeChange : '',
+            ].filter(Boolean).join(' · ')}</td>
+          </tr>)}
+        </tbody>
+      </table>
+    </details>
+  }
+
+  function remainingList(ariaLabel: string) {
+    if (!remaining.length) return null
+    return <div className={styles.remainingGroup}>
+      <small className={styles.decisionSubHeading}>{c.stillUnplaced}</small>
+      <ul aria-label={ariaLabel} className={styles.remainingSummaries}>
+        {remainingTeacherLines(remaining, teacherNames, c).map((item) => (
+          <li key={`remaining-${item.key}`}>{item.text}</li>
+        ))}
+      </ul>
+    </div>
+  }
+
+  function confirmationCheckboxes(targetKey: string, teacherAliases: string[], sacrificeAliasList: string[], sacrificeSource: Simulation | undefined) {
     return <>
-      {teacherMoveList(simulation.changes, 'Teacher adjustments')}
-      <details className={styles.piHistory}>
-        <summary>Per-lesson details</summary>
-        <table className={styles.changeTable}>
-          <caption>Expected changes ({simulation.changes.length} lessons)</caption>
-          <thead><tr><th>Teacher</th><th>Lesson</th><th>From</th><th>To</th><th>Notes</th></tr></thead>
-          <tbody>
-            {simulation.changes.map((row) => <tr key={`${row.group_alias}-${row.subject_alias}`}>
-              <td>{row.teacher || '—'}</td>
-              <td>{row.label || row.subject_alias}{row.group_size > 1 ? <small> (teacher-day block of {row.group_size} lessons)</small> : null}</td>
-              <td>{placement(row.from)}</td>
-              <td>{row.action === 'withdraw' ? 'Back to unplaced (sacrificed)' : placement(row.to)}</td>
-              <td>{[
-                row.action === 'place' ? 'Place' : row.action === 'withdraw' ? 'Withdraw' : 'Move',
-                row.room_changed && row.action !== 'withdraw' ? 'room change' : '',
-                row.time_changed ? 'time change (exception)' : '',
-              ].filter(Boolean).join(' · ')}</td>
-            </tr>)}
-          </tbody>
-        </table>
-      </details>
+      {teacherAliases.length ? (
+        <div className={styles.decisionSubGroup}>
+          <small className={styles.decisionSubHeading}>{c.confirmTeachers}</small>
+          <div className={styles.checkboxGroup}>
+            {teacherAliases.map((alias) => (
+              <label key={alias} className={styles.decisionLabel}>
+                <input
+                  checked={confirmedFor(targetKey).includes(alias)}
+                  onChange={(event) => toggle(confirmedFor(targetKey), (next) => setConfirmedFor(targetKey, next), alias, event.target.checked)}
+                  type="checkbox"
+                />
+                <span>{fmt(c.confirmed, { name: teacherName(alias) })}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {sacrificeAliasList.length ? (
+        <div className={styles.decisionSubGroup}>
+          <small className={styles.decisionSubHeading}>{c.sacrificeAuth}</small>
+          <div className={styles.checkboxGroup}>
+            {sacrificeAliasList.map((alias) => {
+              const item = sacrificeSource?.sacrifices?.find((row) => row.subject_alias === alias)
+              const who = teacherName(item?.teacher_alias ?? alias)
+              const when = item?.start && item?.end ? ` ${clock(item.start)}–${clock(item.end)}` : ''
+              return (
+                <label key={alias} className={styles.decisionLabel}>
+                  <input
+                    checked={sacrificesFor(targetKey).includes(alias)}
+                    onChange={(event) => toggle(sacrificesFor(targetKey), (next) => setSacrificesFor(targetKey, next), alias, event.target.checked)}
+                    type="checkbox"
+                  />
+                  <span>{fmt(c.authorizeSacrifice, { who, when })}</span>
+                </label>
+              )
+            })}
+          </div>
+        </div>
+      ) : null}
     </>
   }
 
-  function stopResult() {
-    if (!brief || recommended) return null
-    const remaining = brief.remaining_issues ?? []
-    const stoppedByBudget = brief.termination === 'budget_exhausted'
-    const needsException = (brief.pending_decisions ?? []).some((item) => item.kind === 'exception_authorization')
-    return <article className={styles.piProposal} data-testid="reconciliation-stop-result">
-      <header>
-        <h4>{publicTitle(brief.title, stoppedByBudget ? 'Investigation limit reached' : needsException ? 'No legal rooms left; an exception decision is needed' : 'No feasible complete package found')}</h4>
-        <span>{brief.status === 'rejected' ? 'Recorded' : stoppedByBudget ? 'Interrupted' : needsException ? 'Exception needed' : 'No feasible package'}</span>
-      </header>
-      {pendingList(brief.pending_decisions, teacherNames)}
-      {brief.limitations?.length ? <small>Limitations: {brief.limitations.join('; ')}</small> : null}
-      {remaining.length ? <div>
-        <small>Still unresolved:</small>
-        <ul>{remainingTeacherLines(remaining, teacherNames).map((item) => (
-          <li key={`stop-${item.key}`}>{item.text}</li>
-        ))}</ul>
-      </div> : null}
-      {brief.status === 'proposed' ? <div className={styles.planActions}>
-        <textarea aria-label="Reconciliation decision note" maxLength={500} onChange={(event) => setNote(event.target.value)} placeholder="Decision note (optional)" value={note} />
-        <button disabled={active} onClick={() => rejectMutation.mutate()} type="button">Record and close</button>
-      </div> : null}
-    </article>
+  /** Slot 2 — only teachers and rooms actually involved. */
+  function contextSlot() {
+    if (!decisionBrief) return null
+    const teacherDays = decisionBrief.teacher_days ?? []
+    const roomViews = decisionBrief.room_views ?? []
+    const unknowns = decisionBrief.unknowns ?? []
+    const prior = investigation?.task?.prior_thread
+    if (!teacherDays.length && !roomViews.length && !unknowns.length && !prior) return null
+    return <aside className={styles.contextColumn}>
+      <h3 className={styles.slotHeading}>{c.contextHeading}</h3>
+      {teacherDays.map((day) => (
+        <div className={styles.teacherDay} key={day.teacher}>
+          <strong className={styles.teacherDayName}>{teacherName(day.teacher)}</strong>
+          <ul className={styles.teacherDayRows}>
+            {(day.rows ?? []).map((row, index) => {
+              const variantNotes = Object.entries(row.variants ?? {})
+                .filter(([, value]) => (value || '') !== (row.room || ''))
+                .map(([key, value]) => ({ key, label: optionLabelFor(c, key), value: value ? String(value) : c.unplaced }))
+              return (
+                <li key={`${day.teacher}-${index}`} data-state={row.state} className={styles.teacherDayRow}>
+                  <span className={styles.teacherDayTime}>{clock(row.start)}–{clock(row.end)}</span>
+                  <span className={styles.teacherDayRoom}>{row.room ?? c.unplacedLesson}</span>
+                  {row.label ? <span className={styles.teacherDayLabel}>{row.label}</span> : null}
+                  {variantNotes.map((note) => <span key={note.key} className={styles.variantNote}>{note.label} → {note.value}</span>)}
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      ))}
+      {roomViews.length ? (
+        <div className={styles.roomChips}>
+          {roomViews.map((view) => (
+            <div className={styles.roomChip} key={view.room}>
+              <strong>{view.room}</strong>
+              <span>{c.accepts} {view.accepts?.length ? view.accepts.join(locale === 'zh' ? '、' : ', ') : '—'}</span>
+              {view.busy?.length
+                ? <small>{c.busy}{view.busy.map((item) => `${clock(item.start)}–${clock(item.end)} ${item.label}`).join(locale === 'zh' ? '；' : '; ')}</small>
+                : <small>{c.noBusy}</small>}
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {unknowns.length ? (
+        <ul className={styles.unknownList}>
+          {unknowns.map((item, index) => (
+            <li key={`unknown-${index}`}>{c.unverified}{item.subject}{item.note ? ` — ${item.note}` : ''}</li>
+          ))}
+        </ul>
+      ) : null}
+      {prior ? <small className={styles.priorNote}>{fmt(c.priorNote, { goal: prior.goal, termination: terminationLabel(c, prior.termination) })}</small> : null}
+    </aside>
   }
 
-  function recommendation() {
-    if (!recommended) return null
-    if (brief?.status === 'rejected') return <article className={styles.piProposal}>
-      <header><h4>{brief.title}</h4><span>Marked as not pursued</span></header>
-      <small>This conclusion was recorded as not pursued{brief.decision_note ? `: ${brief.decision_note}` : ''}. The schedule is unchanged; adjust the boundaries and investigate again when needed.</small>
-    </article>
-    const pending = brief?.pending_decisions ?? []
-    const remaining = brief?.remaining_issues ?? []
-    const splits = recommended.split_teacher_days ?? []
-    return <article className={styles.piProposal} data-testid="reconciliation-recommendation">
-      <header>
-        <h4>{publicTitle(brief?.title, simulationHeadline(recommended.metrics ?? {}))}</h4>
-        <span>{useFallback ? 'Alternative' : 'Primary'}</span>
-      </header>
-      <small>{groupTeacherMoves(recommended.changes).length} adjustments</small>
-      {recommended.same_day_time_change ? <p className={styles.resolutionError}>This package contains a time-change exception; every listed teacher must confirm before it can be applied.</p> : null}
-      {changeSide(recommended)}
-      {splits.length ? <small>Cost: {splits.map((item) => `${teacherNames[item.teacher_alias] ?? item.teacher_alias} will use ${(item.rooms ?? []).join(' / ')}`).join('; ')}</small> : null}
-      {pendingList(pending, teacherNames)}
-      {brief?.limitations?.length ? <small>Limitations: {brief.limitations.join('; ')}</small> : null}
-      {remaining.length ? <div>
-        <small>Still unplaced:</small>
-        <ul className={styles.remainingSummaries}>{remainingTeacherLines(remaining, teacherNames).map((item) => (
-          <li key={`remaining-${item.key}`}>{item.text}</li>
-        ))}</ul>
-      </div> : null}
-      {requiredSacrifices.length ? <div>
-        <small>This package returns the following scheduled lessons to unplaced; authorize each separately:</small>
-        {teacherMoveList(recommended.sacrifices.map((item) => ({
-          action: 'withdraw',
-          teacher: teacherNames[item.teacher_alias] ?? item.teacher_alias,
-          from: { room: item.room, start: item.start, end: item.end },
-        })), 'To withdraw')}
-      </div> : null}
-      {requiredAliases.length ? <div>
-        <small>Confirm each teacher has agreed to the exact change before applying:</small>
-        {requiredAliases.map((alias) => <label key={alias}>
-          <input
-            checked={confirmed.includes(alias)}
-            onChange={(event) => toggle(confirmed, setConfirmed, alias, event.target.checked)}
-            type="checkbox"
-          /> {teacherNames[alias] ?? alias} has agreed
-        </label>)}
-      </div> : null}
-      <div className={styles.planActions}>
-        {requiredSacrifices.map((alias) => {
-          const item = recommended.sacrifices.find((row) => row.subject_alias === alias)
-          const who = teacherNames[item?.teacher_alias ?? ''] ?? item?.teacher_alias ?? alias
-          const when = item ? `${clock(item.start)}–${clock(item.end)}` : ''
-          return <label key={alias}>
+  function optionLabel(option: DecisionOption): string {
+    return optionLabelFor(c, option.option_id)
+  }
+
+  /** Slot 3 — comparison plus per-option blocks; Slot 4 — shared common part. */
+  function optionsSlot() {
+    if (!decisionBrief || !options.length) return null
+    const agentNote = decisionBrief.agent_note?.trim()
+    return <div className={styles.optionsColumn}>
+      {options.length >= 2 && (decisionBrief.comparison ?? []).length ? (
+        <table className={styles.compareTable} aria-label={c.compare}>
+          <thead>
+            <tr><th>{c.compare}</th>{options.map((option) => <th key={option.option_id}>{optionLabel(option)}</th>)}</tr>
+          </thead>
+          <tbody>
+            {(decisionBrief.comparison ?? []).map((row) => (
+              <tr key={row.label}><td>{localizeServerLabel(locale, row.label)}</td>{(row.values ?? []).map((value, index) => <td key={options[index]?.option_id ?? index}>{localizeServerValue(locale, value)}</td>)}</tr>
+            ))}
+          </tbody>
+        </table>
+      ) : null}
+      {options.map((option) => (
+        <section
+          className={styles.optionBlock}
+          data-selected={chosenOption?.option_id === option.option_id}
+          data-testid={`reconciliation-option-${option.option_id}`}
+          key={option.option_id}
+        >
+          <label className={styles.optionHead}>
             <input
-              checked={authorizedSacrifices.includes(alias)}
-              onChange={(event) => toggle(authorizedSacrifices, setAuthorizedSacrifices, alias, event.target.checked)}
-              type="checkbox"
-            /> Authorize sacrifice {who}{when ? ` ${when}` : ''}
+              aria-label={fmt(c.selectOption, { option: optionLabel(option) })}
+              checked={chosenOption?.option_id === option.option_id}
+              disabled={active}
+              name="reconciliation-option"
+              onChange={() => setChosenOptionId(option.option_id)}
+              type="radio"
+            />
+            <strong>{optionLabel(option)}</strong>
           </label>
-        })}
-        <textarea
-          aria-label="Reconciliation decision note"
-          maxLength={500}
-          onChange={(event) => setNote(event.target.value)}
-          placeholder="Decision note (optional, recorded in this task record)"
-          value={note}
+          {changeList(option.diffs ?? option.changes, fmt(c.optionChanges, { option: optionLabel(option) }), c)
+            || (decisionBrief.common ? <p className={styles.quietNote}>{c.sameAsCommon}</p> : null)}
+          {lessonDetails(option.changes, fmt(c.lessonDetails, { option: optionLabel(option), n: option.changes?.length ?? 0 }))}
+        </section>
+      ))}
+      {agentNote ? <p className={styles.quietNote}>{c.piLeans}{agentNote}</p> : null}
+      {common ? (() => {
+        const key = commonTargetKey
+        const teachers = common.required_teacher_aliases ?? []
+        const sacrificeAliasList = common.sacrifice_aliases ?? []
+        const ready = !active && isConfirmed(key, teachers, sacrificesFor(key), sacrificeAliasList)
+        return <section className={styles.commonBlock} data-testid="reconciliation-common">
+          <h3 className={styles.slotHeading}>{c.commonHeading}</h3>
+          <p className={styles.quietNote}>{c.commonNote}</p>
+          {changeList(common.changes, c.commonChanges, c)}
+          {confirmationCheckboxes(key, teachers, sacrificeAliasList, undefined)}
+          <div className={styles.commonActionRow}>
+            <button disabled={!ready} onClick={() => applyCommonMutation.mutate()} type="button">{c.applyCommon}</button>
+          </div>
+        </section>
+      })() : null}
+    </div>
+  }
+
+  /** Slot 5 — confirmations gating the apply action for the chosen option. */
+  function confirmSlot() {
+    if (!chosenOption) return null
+    const sim = simulations.find((item) => item.simulation_id === chosenOption.simulation_id)
+    const teachers = requiredTeachers(chosenOption)
+    const sacrificeAliasList = sacrificeAliases(chosenOption)
+    return <section className={styles.confirmSection} data-testid="reconciliation-confirm">
+      <h3 className={styles.slotHeading}>{c.confirmHeading}</h3>
+      {sim?.same_day_time_change ? (
+        <p className={styles.exceptionNotice}>{fmt(c.timeChangeNotice, { option: optionLabel(chosenOption) })}</p>
+      ) : null}
+      {confirmationCheckboxes(optionTargetKey(chosenOption), teachers, sacrificeAliasList, sim)}
+      {!teachers.length && !sacrificeAliasList.length ? (
+        <small className={styles.quietNote}>{c.noConfirm}</small>
+      ) : null}
+    </section>
+  }
+
+  /** Slot 6 — steer the next investigation. */
+  function continueSlot(guidance: string) {
+    return <section className={styles.piTalkProposal}>
+      <h3 className={styles.slotHeading}>{c.continueHeading}</h3>
+      <p className={styles.piTalkGuidance}>{guidance}</p>
+      {lastInstruction ? <small className={styles.lastInstruction}>{fmt(c.lastInstruction, { goal: lastInstruction })}</small> : null}
+      <div className={styles.talkInputRow}>
+        <input
+          aria-label={c.goalAria}
+          disabled={active}
+          maxLength={600}
+          onChange={(event) => setGoal(event.target.value)}
+          placeholder={c.goalPlaceholder}
+          type="text"
+          value={goal}
         />
         <button
-          disabled={active
-            || requiredAliases.some((alias) => !confirmed.includes(alias))
-            || requiredSacrifices.some((alias) => !authorizedSacrifices.includes(alias))}
-          onClick={() => applyMutation.mutate()}
+          disabled={active || !workspaceVersion || !parseChoice(choice).model}
+          onClick={() => startMutation.mutate()}
           type="button"
-        >Apply this recommendation<span aria-hidden="true" className={styles.ctaIcon}>↗</span></button>
-        <button disabled={active || applied} onClick={() => rejectMutation.mutate()} type="button">Reject</button>
+        >
+          {active ? c.investigating : c.reinvestigate}
+        </button>
       </div>
-      {interrupted ? <small>{interruptedHint}</small> : null}
+    </section>
+  }
+
+  /** Evidence layer — technical detail, collapsed by default. */
+  function evidenceDetails() {
+    const hasEvents = Boolean(operation?.events.length)
+    const hasBriefDetail = Boolean(
+      brief?.rationale
+      || brief?.trade_offs?.length
+      || brief?.limitations?.length
+      || brief?.pending_decisions?.length
+      || brief?.primary_simulation_id,
+    )
+    if (!hasEvents && !hasBriefDetail) return null
+    const coverage = investigation?.coverage ?? {}
+    return <details className={styles.evidenceBlock} data-testid="reconciliation-evidence">
+      <summary>{c.evidence}</summary>
+      <div className={styles.evidenceBody}>
+        {typeof coverage.subjects_inspected === 'number' && typeof coverage.subjects_total === 'number'
+          ? <small>{fmt(c.coverage, { inspected: coverage.subjects_inspected, total: coverage.subjects_total })}{typeof coverage.simulation_count === 'number' ? ` · ${fmt(c.metricsValid, { n: coverage.simulation_count })}` : ''}</small>
+          : null}
+        {options.length ? <small>{c.optionIds}{options.map((option) => `${optionLabel(option)}=${option.simulation_id}`).join(' · ')}</small> : null}
+        {brief?.primary_simulation_id ? <small>{fmt(c.primarySim, { id: brief.primary_simulation_id })}{brief.fallback_simulation_id ? fmt(c.fallbackSim, { id: brief.fallback_simulation_id }) : ''}</small> : null}
+        {operation?.status === 'completed' && operationMetrics(operation, c) ? <small>{operationMetrics(operation, c)}</small> : null}
+        {brief?.rationale ? <p><strong>{c.rationale}</strong>{brief.rationale}</p> : null}
+        {brief?.trade_offs?.length ? (
+          <div><strong>{c.tradeoffs}</strong><ul>{brief.trade_offs.map((item, index) => <li key={`trade-${index}`}>{item}</li>)}</ul></div>
+        ) : null}
+        {brief?.limitations?.length ? <p><strong>{c.limitations}</strong>{brief.limitations.join(locale === 'zh' ? '；' : '; ')}</p> : null}
+        {brief?.pending_decisions?.length ? (
+          <div><strong>{c.pendingOriginal}</strong><ul>
+            {brief.pending_decisions.map((item, index) => (
+              <li key={`pending-${index}`}>
+                {pendingKindLabel(c, item.kind)}{item.teacher_alias ? ` · ${teacherName(item.teacher_alias)}` : ''}
+                {item.detail ? ` — ${item.detail}` : ''}
+              </li>
+            ))}
+          </ul></div>
+        ) : null}
+        {operation?.events.length ? (
+          <ol className={styles.evidenceEvents}>
+            {operation.events.map((event) => <li key={event.seq}>{event.label || event.type}</li>)}
+          </ol>
+        ) : null}
+      </div>
+    </details>
+  }
+
+  /** Slot 1 — the current decision, strongest headline on the page. */
+  function focusBlock(question: string, statusKey: string) {
+    return <div className={styles.focusBlock}>
+      <span className={styles.statusChip} data-status={statusKey}>{statusLabel(c, statusKey)}</span>
+      <h3 className={styles.focusQuestion}>{question}</h3>
+      {interrupted ? (
+        <div className={styles.interruptedCallout} role="status">
+          <strong>{c.interruptedTitle}</strong>
+          <p>{isRuntimeTimeout ? c.interruptedTimeout : c.interruptedBudget}</p>
+        </div>
+      ) : null}
+    </div>
+  }
+
+  function revisionSlot() {
+    const revision = decisionBrief?.revision
+    if (!revision) return null
+    const effects = revision.effects ?? []
+    if (!effects.length && !revision.instruction) return null
+    return <section className={styles.revisionBlock} data-testid="reconciliation-revision">
+      <h3 className={styles.slotHeading}>{c.revisionHeading}</h3>
+      {revision.instruction ? <p>{c.thisRound}{revision.instruction}</p> : null}
+      {effects.length ? <ul>{effects.map((item, index) => <li key={`${item.code}-${index}`}>{localizeRevisionEffect(locale, item.code, item.text, revision)}</li>)}</ul> : null}
+    </section>
+  }
+
+  function decisionView() {
+    if (!decisionBrief) return null
+    const question = localizeFocusQuestion(locale, decisionBrief.focus.question, decisionBrief.focus.status)
+    const key = chosenOption ? optionTargetKey(chosenOption) : ''
+    const teachers = chosenOption ? requiredTeachers(chosenOption) : []
+    const sacrificeAliasList = chosenOption ? sacrificeAliases(chosenOption) : []
+    const applyReady = !active && chosenOption
+      && isConfirmed(key, teachers, sacrificesFor(key), sacrificeAliasList)
+    return <article data-testid="reconciliation-decision">
+      {focusBlock(question, decisionBrief.focus.status)}
+      {revisionSlot()}
+      <div className={styles.decisionBand}>
+        {contextSlot()}
+        {optionsSlot()}
+      </div>
+      {options.length ? confirmSlot() : null}
+      {continueSlot(c.continueDecision)}
+      {options.length ? (
+        <footer className={styles.decisionActions}>
+          <input
+            aria-label={c.noteAria}
+            disabled={active}
+            maxLength={500}
+            onChange={(event) => setNote(event.target.value)}
+            placeholder={c.notePlaceholder}
+            type="text"
+            value={note}
+          />
+          <div className={styles.decisionActionButtons}>
+            <button disabled={!applyReady} onClick={() => applyMutation.mutate()} type="button">{c.apply}</button>
+            <button disabled={active || applied} onClick={() => rejectMutation.mutate()} type="button">{c.defer}</button>
+          </div>
+        </footer>
+      ) : null}
+      {evidenceDetails()}
     </article>
   }
 
-  const lastInstruction = String(investigation?.task?.goal || '').trim()
-  const followUp = Boolean(investigation)
-  const remaining = investigation?.brief?.remaining_issues ?? []
-  const appliedMoves = groupTeacherMoves(applyResult?.changes)
+  function stopView() {
+    if (!brief) return null
+    const question = localizeFocusQuestion(locale, decisionBrief?.focus.question || brief.focus_question || '', decisionBrief?.focus.status ?? 'no_package')
+    const pending = brief.pending_decisions ?? []
+    return <article data-testid="reconciliation-stop-result">
+      {focusBlock(question, decisionBrief?.focus.status ?? 'no_package')}
+      {revisionSlot()}
+      <div className={styles.decisionBand}>
+        {contextSlot()}
+        <div className={styles.optionsColumn}>
+          {remaining.length ? (
+            <section>
+              <h3 className={styles.slotHeading}>{c.remainingHeading}</h3>
+              <ul className={styles.remainingSummaries}>
+                {remainingTeacherLines(remaining, teacherNames, c).map((item) => (
+                  <li key={`stop-${item.key}`}>{item.text}</li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+          {pending.length ? (
+            <section>
+              <h3 className={styles.slotHeading}>{c.pendingHeading}</h3>
+              <ul className={styles.pendingItems}>
+                {pending.map((item, index) => (
+                  <li key={`pending-${index}`}>
+                    <strong>{pendingKindLabel(c, item.kind)}{item.teacher_alias ? ` · ${teacherName(item.teacher_alias)}` : ''}</strong>
+                    {item.detail ? <span className={styles.pendingDetail}>{item.detail}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+        </div>
+      </div>
+      {continueSlot(c.continueStop)}
+      {brief.status === 'proposed' ? (
+        <footer className={styles.decisionActions}>
+          <input
+            aria-label={c.noteAria}
+            disabled={active}
+            maxLength={500}
+            onChange={(event) => setNote(event.target.value)}
+            placeholder={c.notePlaceholder}
+            type="text"
+            value={note}
+          />
+          <div className={styles.decisionActionButtons}>
+            <button disabled={active} onClick={() => rejectMutation.mutate()} type="button">{c.recordClose}</button>
+          </div>
+        </footer>
+      ) : null}
+      {evidenceDetails()}
+    </article>
+  }
+
+  function appliedView() {
+    if (!applyResult) return null
+    return <article data-testid="reconciliation-applied">
+      {focusBlock(c.appliedFocus, 'ready')}
+      <div className={styles.decisionBand}>
+        <div className={styles.contextColumn}>
+          <h3 className={styles.slotHeading}>{c.appliedChanges}</h3>
+          {changeList(applyResult.changes, c.appliedChanges, c)}
+          <small className={styles.quietNote}>{c.appliedNote}</small>
+        </div>
+        <div className={styles.optionsColumn}>
+          {remainingList(c.remainingAria)}
+        </div>
+      </div>
+      {lessonDetails(applyResult.changes, fmt(c.appliedDetails, { n: applyResult.changes?.length ?? 0 }))}
+      {continueSlot(c.continueApplied)}
+      {evidenceDetails()}
+    </article>
+  }
+
+  function rejectedView() {
+    if (!brief) return null
+    return <article data-testid="reconciliation-rejected">
+      {focusBlock(localizeFocusQuestion(locale, brief.focus_question || '', 'no_package') || c.rejectedFallback, 'no_package')}
+      <p className={styles.rationaleBody}>
+        {brief.decision_note ? fmt(c.rejectedBodyNote, { note: brief.decision_note }) : c.rejectedBody}
+      </p>
+      {continueSlot(c.continueRejected)}
+    </article>
+  }
 
   return (
-    <section className={styles.piIntervention} aria-label="Pi reconciliation investigation">
+    <section className={styles.piIntervention} aria-label={c.panelAria} lang={locale === 'zh' ? 'zh-CN' : 'en'}>
       <div className={styles.piWorkbenchHeading}>
-        <div className={styles.piHeadingTitle}><h2>Pi reconciliation investigator</h2><small>Whole-day delegation · fixed times · preserve-first · sandbox and advice only</small></div>
+        <div className={styles.piHeadingTitle}>
+          <div className={styles.piHeadingMainRow}>
+            <h2>{c.panelTitle}</h2>
+            <div className={styles.piHeadingActions}>
+              <button
+                aria-label={locale === 'zh' ? c.switchToEn : c.switchToZh}
+                className={styles.expandReadingButton}
+                data-testid="pi-locale-toggle"
+                onClick={() => {
+                  const next = locale === 'zh' ? 'en' : 'zh'
+                  writePiLocale(next)
+                  setLocale(next)
+                }}
+                type="button"
+              >
+                {c.switchLabel}
+              </button>
+              {onToggleReadingExpanded ? (
+                <button
+                  aria-pressed={isReadingExpanded}
+                  className={styles.expandReadingButton}
+                  onClick={onToggleReadingExpanded}
+                  type="button"
+                >
+                  {isReadingExpanded ? c.backToGrid : c.expandReading}
+                  <span aria-hidden="true" className={styles.expandReadingIcon}>
+                    {isReadingExpanded ? '◧' : '◨'}
+                  </span>
+                </button>
+              ) : null}
+            </div>
+          </div>
+          <small>{c.tagline}</small>
+        </div>
         <div className={styles.piRuntimePickers}>
-          <label>Pi model
+          <label>{c.model}
             <select
-              aria-label="Pi model"
+              aria-label={c.model}
               disabled={active || !choices.length}
               onChange={(event) => setChoice(event.target.value)}
               value={choices.some((item) => choiceValue(item) === choice) ? choice : defaultChoice}
@@ -556,9 +1040,9 @@ export function PiReconciliationPanel({ activeDay, disabled, investigation, piRu
               ))}
             </select>
           </label>
-          <label>Thinking
+          <label>{c.thinking}
             <select
-              aria-label="Pi thinking"
+              aria-label={c.thinking}
               disabled={active || !thinkingLevels.length}
               onChange={(event) => setThinking(event.target.value)}
               value={thinkingLevels.includes(thinking) ? thinking : (piRuntime?.thinking_level || 'off')}
@@ -568,90 +1052,62 @@ export function PiReconciliationPanel({ activeDay, disabled, investigation, piRu
           </label>
         </div>
       </div>
-      <p className={styles.piPrivacy}>One investigation covers the day's unplaced lessons and their linked adjustments. Python validates every package; Pi cannot edit the schedule. No teacher checklist needed first.</p>
-      {stale ? <p className={styles.resolutionError}>The schedule changed; this recommendation is stale. Investigate again before applying.</p> : null}
-      {operation?.status === 'failed' ? <p className={styles.resolutionError} role="alert">{operation.error ?? 'Pi did not submit an investigation brief.'}</p> : null}
+      <p className={styles.piPrivacy}>{c.privacy}</p>
+      {stale ? <p className={styles.resolutionError}>{c.stale}</p> : null}
+      {operation?.status === 'failed' ? <p className={styles.resolutionError} role="alert">{operation.error ?? c.noResult}</p> : null}
       {operation ? (
         <div className={styles.piProgress} data-testid="pi-progress">
           <small>
-            {operation.phase === 'completed'
-              ? 'Investigation complete'
-              : operation.phase === 'failed'
-                ? 'Investigation failed'
-                : PHASE_LABELS[operation.phase] ?? operation.phase}
-            {elapsedSeconds(operation) ? ` · elapsed ${elapsedSeconds(operation)}s` : ''}
-            {operation.status === 'completed'
-              && operation.result?.termination
-              && operation.result.termination !== 'recommendation_ready'
-              ? ` · ${TERMINATION_LABELS[String(operation.result.termination)] ?? String(operation.result.termination)}`
-              : ''}
+            {operationStatusLabel(operation, c)}
+            {elapsedSeconds(operation, now) ? ` · ${fmt(c.elapsed, { n: elapsedSeconds(operation, now) ?? '' })}` : ''}
           </small>
-          {operation.events.length ? (
-            <ol className={styles.piProgressEvents}>
-              {operation.events.slice(-6).map((event) => (
-                <li key={event.seq}>{progressEventLabel(event)}</li>
-              ))}
-            </ol>
-          ) : null}
-          {operation.status === 'completed' && operationMetrics(operation) ? (
-            <small className="meta">{operationMetrics(operation)}</small>
+          {operation.status === 'completed' && operationMetrics(operation, c) ? (
+            <small className="meta">{operationMetrics(operation, c)}</small>
           ) : null}
         </div>
       ) : null}
-      {applied && remaining.length ? <ul aria-label="Still unplaced" className={styles.remainingSummaries}>
-        {remainingTeacherLines(remaining, teacherNames).map((item) => (
-          <li key={`left-${item.key}`}>{item.text}</li>
-        ))}
-      </ul> : null}
-      <div className={styles.piTalk}>
-        {lastInstruction ? <small>Your last instruction: {lastInstruction}</small> : null}
-        <input
-          aria-label="Message to Pi"
-          disabled={active}
-          maxLength={600}
-          onChange={(event) => setGoal(event.target.value)}
-          placeholder={followUp ? 'Continue: who not to touch, time-change exceptions, the remaining unplaced…' : 'What should this run achieve? (optional)'}
-          type="text"
-          value={goal}
-        />
-        <button disabled={active || !workspaceVersion || !parseChoice(choice).model} onClick={() => startMutation.mutate()} type="button">
-          {active ? 'Pi is investigating…' : followUp
-            ? <>Investigate again with this<span aria-hidden="true" className={styles.ctaIcon}>↗</span></>
-            : <>{`Investigate ${dayNames[activeDay] ?? ''}'s linked adjustments`}<span aria-hidden="true" className={styles.ctaIcon}>↗</span></>}
-        </button>
-      </div>
-      {applied && applyResult ? <article className={styles.piProposal} data-testid="reconciliation-applied">
-        <header>
-          <h4>Applied</h4>
-          <span>{appliedMoves.length} adjustments</span>
-        </header>
-        {teacherMoveList(applyResult.changes, 'Applied adjustments')}
-        {(applyResult.changes ?? []).length ? <details className={styles.piHistory}>
-          <summary>Per-lesson details</summary>
-          <table className={styles.changeTable}>
-            <caption>Changes actually applied</caption>
-            <thead><tr><th>Teacher</th><th>Lesson</th><th>From</th><th>To</th></tr></thead>
-            <tbody>
-              {(applyResult.changes ?? []).map((row) => <tr key={`applied-${row.group_alias}-${row.subject_alias}`}>
-                <td>{row.teacher || '—'}</td>
-                <td>{row.label || row.subject_alias}</td>
-                <td>{placement(row.from)}</td>
-                <td>{row.action === 'withdraw' ? 'Back to unplaced (sacrificed)' : placement(row.to)}</td>
-              </tr>)}
-            </tbody>
-          </table>
-        </details> : null}
-        <small>You can undo this application as a whole if needed; it does not auto-Stage or Finalize.</small>
-      </article> : null}
-      {!applied && recommended ? recommendation() : null}
-      {!applied && !recommended ? stopResult() : null}
-      {!applied && fallback ? <details className={styles.planVariants}>
-        <summary>Alternative: {Number(fallback.metrics?.resolved_delta ?? 0)} newly placed · {Number(fallback.metrics?.room_switches ?? 0)} room switches (different trade-offs from the primary)</summary>
-        <small>{fallback.status === 'conditional' ? 'The alternative needs extra confirmations or authorization.' : 'The alternative can be applied directly.'}</small>
-        <button disabled={active} onClick={() => { setFallbackForInvestigation(investigation?.investigation_id ?? ''); setConfirmed([]); setAuthorizedSacrifices([]) }} type="button">Use alternative</button>
-        <button disabled={active || !useFallback} onClick={() => { setFallbackForInvestigation(''); setConfirmed([]); setAuthorizedSacrifices([]) }} type="button">Back to primary</button>
-      </details> : null}
-      {error ? <p className={styles.resolutionError} role="alert">{error.message}</p> : null}
+      {operation?.events.length && (!decisionBrief || isOperationActive) ? (
+        <details className={styles.evidenceBlock} data-testid="reconciliation-evidence-running">
+          <summary>{c.evidence}</summary>
+          <div className={styles.evidenceBody}>
+            <ol className={styles.evidenceEvents}>
+              {operation.events.map((event) => <li key={event.seq}>{event.label || event.type}</li>)}
+            </ol>
+          </div>
+        </details>
+      ) : null}
+
+      {applied && applyResult ? appliedView() : null}
+      {!applied && brief?.status === 'rejected' ? rejectedView() : null}
+      {!applied && brief?.status !== 'rejected' && options.length ? decisionView() : null}
+      {!applied && brief?.status !== 'rejected' && !options.length && brief ? stopView() : null}
+      {!applied && !brief && !options.length ? (
+        <div className={styles.piTalkInitial}>
+          <p className={styles.piTalkGuidance}>
+            {c.initialGuidance}
+          </p>
+          <div className={styles.talkInputRow}>
+            <input
+              aria-label={c.goalAria}
+              disabled={active}
+              maxLength={600}
+              onChange={(event) => setGoal(event.target.value)}
+              placeholder={c.initialPlaceholder}
+              type="text"
+              value={goal}
+            />
+            <button
+              disabled={active || !workspaceVersion || !parseChoice(choice).model}
+              onClick={() => startMutation.mutate()}
+              type="button"
+            >
+              {active ? c.investigating : fmt(c.investigateDay, { day: c.days[activeDay] ?? '' })}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {pendingMutationError ? <p className={styles.resolutionError} role="alert">{pendingMutationError.message}</p> : null}
     </section>
   )
 }

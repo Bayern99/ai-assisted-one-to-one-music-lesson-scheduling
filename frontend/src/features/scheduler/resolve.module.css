@@ -353,6 +353,9 @@
 }
 
 .resolveWorkspace.reconciliationMode { --resolve-queue-width: 420px; }
+.resolveWorkspace.reconciliationMode.expandedReadingMode {
+  /* In expanded reading, the reading tray takes generous focus while preserving timetable grid responsiveness */
+}
 .resolveWorkspace.reconciliationWithInspector,
 .resolveWorkspace.reconciliationMode.reconciliationWithInspector {
   grid-template-columns: var(--resolve-queue-width) 8px minmax(920px, 1fr) 300px;

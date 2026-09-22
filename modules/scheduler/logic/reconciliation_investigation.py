@@ -51,6 +51,40 @@ PENDING_DECISION_KINDS = (
     "other",
 )
 
+# Operator-facing prose (brief title/rationale/trade-offs/decisions) is written
+# for a non-technical scheduling coordinator. Internal aliases, simulation ids,
+# and Python failure codes leak machine context into human decisions, so the
+# brief validator rejects them and asks Pi to rewrite in plain words.
+_OPERATOR_PROSE_DENIED = re.compile(
+    r"\b(?:issue|assignment|block|teacher)-\d+\b"
+    r"|\b[0-9a-f]{8,}\b"
+    r"|\b(?:hard_conflict|locked_room_window|room_type_mismatch"
+    r"|time_change_not_authorized|teacher_time_change_not_allowed"
+    r"|cross_day_out_of_scope|protected_subject|unknown_subject_alias"
+    r"|missing_subject_alias|empty_package|duplicate_subject|package_rejected"
+    r"|authorization_required|teacher_confirmation_required"
+    r"|subject_not_in_snapshot|swap_required|same_teacher_overlap"
+    r"|requested_slot_occupied|compatible_room_occupant"
+    r"|candidate_rooms|available_rooms|incompatible_empty_rooms"
+    r"|recommendation_ready|no_feasible_package_found|budget_exhausted"
+    r"|dominates|dominated|dominance|pareto|primary|fallback|simulation"
+    r"|snapshot|sandbox|alias|package|metrics|unresolved|subject)\b",
+    re.IGNORECASE,
+)
+_CJK_RE = re.compile(r"[\u4e00-\u9fff]")
+
+
+def _operator_prose_violation(field: str, text: str) -> str | None:
+    """Return a rewrite instruction when operator prose leaks internal context."""
+    hit = _OPERATOR_PROSE_DENIED.search(text or "")
+    if hit is None:
+        return None
+    return (
+        f"{field} contains internal identifier '{hit.group(0)}'. "
+        "Rewrite it for the operator in plain words: teacher names, times, "
+        "and rooms only; never internal aliases, ids, or failure codes."
+    )
+
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -1753,10 +1787,14 @@ class ReconciliationInvestigation:
             resolved = self._teacher_aliases.get(alias.casefold()) if alias else None
             if alias and resolved is None:
                 raise PackageRejected(f"Unknown instructor in pending decision: {alias}")
+            detail = str(item.get("detail") or "").strip()[:400]
+            violation = _operator_prose_violation("Pending decision detail", detail)
+            if violation:
+                raise PackageRejected(violation)
             pending_decisions.append(
                 {
                     "kind": kind,
-                    "detail": str(item.get("detail") or "").strip()[:400],
+                    "detail": detail,
                     "teacher_alias": resolved,
                 }
             )
@@ -1823,6 +1861,85 @@ class ReconciliationInvestigation:
                 raise PackageRejected(
                     "A no-package brief requires inspection of every unresolved lesson in the day."
                 )
+        title = str(params.get("title") or "").strip() or "排课协调建议"
+        if len(title) > 80:
+            raise PackageRejected("Brief title must be at most 80 characters.")
+        violation = _operator_prose_violation("Brief title", title)
+        if violation:
+            raise PackageRejected(violation)
+        rationale = str(params.get("rationale") or "").strip()
+        if len(rationale) > 800:
+            raise PackageRejected("Brief rationale must be at most 800 characters.")
+        violation = _operator_prose_violation("Brief rationale", rationale)
+        if violation:
+            raise PackageRejected(violation)
+        trade_offs = []
+        for item in params.get("trade_offs") or []:
+            text = str(item).strip()
+            if not text:
+                continue
+            if len(text) > 200:
+                raise PackageRejected("Each trade-off must be at most 200 characters.")
+            violation = _operator_prose_violation("Trade-off", text)
+            if violation:
+                raise PackageRejected(violation)
+            trade_offs.append(text)
+        if len(trade_offs) > 6:
+            raise PackageRejected("A brief carries at most 6 trade-offs.")
+        limitations = []
+        for item in params.get("limitations") or []:
+            text = str(item).strip()
+            if not text:
+                continue
+            if len(text) > 200:
+                raise PackageRejected("Each limitation must be at most 200 characters.")
+            violation = _operator_prose_violation("Limitation", text)
+            if violation:
+                raise PackageRejected(violation)
+            limitations.append(text)
+        if len(limitations) > 6:
+            raise PackageRejected("A brief carries at most 6 limitations.")
+        focus_question = str(params.get("focus_question") or "").strip()
+        if termination in {"recommendation_ready", "no_feasible_package_found"}:
+            if not focus_question:
+                raise PackageRejected(
+                    "The brief needs focus_question: one plain sentence telling the "
+                    "operator what decision this brief is about."
+                )
+            if not _CJK_RE.search(focus_question):
+                raise PackageRejected(
+                    "focus_question must be written in Chinese for the operator."
+                )
+        if len(focus_question) > 120:
+            raise PackageRejected("focus_question must be at most 120 characters.")
+        violation = _operator_prose_violation("focus_question", focus_question)
+        if violation:
+            raise PackageRejected(violation)
+        unknowns = []
+        for item in params.get("unknowns") or []:
+            if not isinstance(item, dict):
+                raise PackageRejected("Each unknown must be an object.")
+            subject = str(item.get("subject") or "").strip()
+            if not subject:
+                raise PackageRejected("Each unknown needs a short subject.")
+            if len(subject) > 60:
+                raise PackageRejected("Each unknown subject must be at most 60 characters.")
+            note = str(item.get("note") or "").strip()
+            if len(note) > 200:
+                raise PackageRejected("Each unknown note must be at most 200 characters.")
+            for field, text in (("Unknown subject", subject), ("Unknown note", note)):
+                violation = _operator_prose_violation(field, text)
+                if violation:
+                    raise PackageRejected(violation)
+            unknowns.append({"subject": subject, "note": note})
+        if len(unknowns) > 5:
+            raise PackageRejected("A brief carries at most 5 unknowns.")
+        agent_note = str(params.get("agent_note") or "").strip()
+        if len(agent_note) > 200:
+            raise PackageRejected("agent_note must be at most 200 characters.")
+        violation = _operator_prose_violation("agent_note", agent_note)
+        if violation:
+            raise PackageRejected(violation)
         self._brief = {
             "brief_id": brief_id,
             "investigation_id": self.investigation_id,
@@ -1831,10 +1948,13 @@ class ReconciliationInvestigation:
             "termination": termination,
             "primary_simulation_id": primary_id,
             "fallback_simulation_id": fallback_id,
-            "title": str(params.get("title") or "Reconciliation package").strip(),
-            "rationale": str(params.get("rationale") or "").strip(),
-            "trade_offs": [str(item).strip() for item in (params.get("trade_offs") or []) if str(item).strip()],
-            "limitations": [str(item).strip() for item in (params.get("limitations") or []) if str(item).strip()],
+            "title": title,
+            "focus_question": focus_question,
+            "agent_note": agent_note,
+            "unknowns": unknowns,
+            "rationale": rationale,
+            "trade_offs": trade_offs,
+            "limitations": limitations,
             "pending_decisions": pending_decisions,
             "remaining_issues": remaining_issues,
             "same_day_time_change": bool(primary_public.get("same_day_time_change")),
@@ -1895,14 +2015,19 @@ class ReconciliationInvestigation:
             {
                 "termination": "budget_exhausted",
                 "primary_simulation_id": primary_id or "",
-                "title": "Interrupted with a verified package available" if primary_id else "Investigation limit reached",
-                "rationale": (
-                    "The search was cut off by a bound before submission, but a validated package that reduces unplaced lessons exists."
+                "title": "调查中断，但已有可用方案" if primary_id else "调查达到上限",
+                "focus_question": (
+                    "调查在达到上限前被中断；已验证的方案仍可应用，未覆盖的部分需要重新调查。"
                     if primary_id
-                    else "The search was cut off by a bound before submission. Completed sandbox results are kept; uncovered routes are not proof of impossibility."
+                    else "调查在达到上限前被中断，没有形成可执行方案；已完成的检查保留作参考。"
+                ),
+                "rationale": (
+                    "搜索在中断前已验证一个可以减少未排课时的方案，可直接应用。"
+                    if primary_id
+                    else "搜索在中断前没有完成。已完成的沙箱检查结果保留；未覆盖的路径不能证明今天无法安排。"
                 ),
                 "limitations": [
-                    f"Stopped by the {bound} bound after {self._tool_calls} exploration calls."
+                    f"在达到上限前共进行了 {self._tool_calls} 次探索调用。"
                 ],
                 "remaining_issues": remaining_issues,
             },

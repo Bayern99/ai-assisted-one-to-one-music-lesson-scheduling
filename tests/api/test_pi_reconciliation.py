@@ -151,6 +151,7 @@ def _stub_rpc(client, target):
             "termination": "recommendation_ready",
             "primary_simulation_id": simulation["simulation_id"],
             "title": "Keep the original time",
+            "focus_question": "这节未排课可以按原时间安排，是否执行？",
             "rationale": "A compatible room is available.",
             "trade_offs": [],
             "limitations": ["Bounded single-day search."],
@@ -321,6 +322,7 @@ def test_rpc_error_after_brief_still_completes(auth_client):
             "termination": "recommendation_ready",
             "primary_simulation_id": simulation["simulation_id"],
             "title": "Keep the original time",
+            "focus_question": "这节未排课可以按原时间安排，是否执行？",
             "rationale": "A compatible room is available.",
         })
         raise PiOptimizerInterventionError("Pi could not complete the intervention.")
@@ -548,7 +550,8 @@ def _time_change_rpc(client, *, start, end):
             "termination": "recommendation_ready",
             "primary_simulation_id": simulation["simulation_id"],
             "title": "Same-day time change",
-            "rationale": "No fixed-time package was acceptable.",
+            "focus_question": "这节未排课需要改到当天较晚时间，是否征得教师同意？",
+            "rationale": "No fixed-time option was acceptable.",
             "trade_offs": ["The lesson moves later the same day."],
             "limitations": [],
             "pending_decisions": [
@@ -679,6 +682,7 @@ def test_teacher_day_block_moves_as_a_unit_through_the_tool_surface(auth_client)
             "termination": "recommendation_ready",
             "primary_simulation_id": simulation["simulation_id"],
             "title": "Swap rooms for the day block",
+            "focus_question": "移动整块连排课到空教室即可安置未排课，是否执行？",
             "rationale": "The teacher-day block moves as a unit into the free room.",
             "trade_offs": [],
             "limitations": [],
@@ -772,6 +776,7 @@ def test_sacrifice_needs_its_own_authorization_before_apply(auth_client):
             "termination": "recommendation_ready",
             "primary_simulation_id": simulation["simulation_id"],
             "title": "Trade the block for the missing lesson",
+            "focus_question": "要安置未排课需要撤下整块连排课，是否授权？",
             "rationale": "No room can hold the block unchanged.",
             "trade_offs": ["One teacher-day block loses its place."],
             "limitations": ["Only a bounded room set was searched."],
@@ -1058,3 +1063,84 @@ def test_task_premises_map_instructor_names_to_aliases(auth_client):
         {"subject_alias": block["subject_alias"], "target": {"room": "R2"}},
     ])
     assert blocked["failure_codes"] == ["protected_subject"]
+
+
+def test_apply_common_executes_only_the_shared_part(auth_client):
+    second = {
+        **UNRESOLVED,
+        "id": "private-issue-2",
+        "source_request_id": "private-source-2",
+        "start": "12:00",
+        "end": "13:00",
+    }
+    _install_run(auth_client, unresolved=[UNRESOLVED, second])
+
+    def fake_rpc(_prompt, *, environment=None, **_kwargs):
+        store = auth_client.app.state.pi_reconciliation_capabilities
+        token = environment["PI_RECONCILIATION_CAPABILITY"]
+        inspected = store.inspect(token)
+        alias_one, alias_two = [case["subject_alias"] for case in inspected["case_index"]]
+        primary = store.simulate(token, [
+            {"subject_alias": alias_one, "target": {"room": "R1", "day": 1, "start": "10:00", "end": "11:00"}},
+            {"subject_alias": alias_two, "target": {"room": "R2", "day": 1, "start": "12:00", "end": "13:00"}},
+        ])
+        fallback = store.simulate(token, [
+            {"subject_alias": alias_one, "target": {"room": "R1", "day": 1, "start": "10:00", "end": "11:00"}},
+        ])
+        store.submit(token, {
+            "termination": "recommendation_ready",
+            "primary_simulation_id": primary["simulation_id"],
+            "fallback_simulation_id": fallback["simulation_id"],
+            "title": "先安置第一节",
+            "focus_question": "第一节课可以安置，第二节仍无房间，是否先执行？",
+            "rationale": "R1 可以安置第一节。",
+            "trade_offs": [],
+            "limitations": [],
+            "remaining_issues": [],
+        })
+        return PiRpcResult(
+            text="done", pi_version="stub", provider="stub", model="stub", latency_ms=1,
+            usage={"input": 0, "output": 0, "cache_read": 0, "cache_write": 0, "total_tokens": 0, "cost": 0.0},
+        )
+
+    _investigate(auth_client, target={"room": "R1", "day": 1, "start": "10:00", "end": "11:00"}, rpc=fake_rpc)
+    advice, public = _public(auth_client)
+    assert public["decision_brief"]["focus"]["status"] == "choice"
+    assert len(public["decision_brief"]["common"]["changes"]) == 1
+
+    applied = auth_client.post(
+        f"/api/scheduler/resolution/reconciliation/{public['investigation_id']}/apply",
+        json={
+            "expected_version": advice["workspace_version"],
+            "scope": "common",
+            "simulation_id": "",
+            "confirmed_teacher_aliases": [],
+            "note": "Apply the shared part first.",
+        },
+    )
+    assert applied.status_code == 200, applied.json()
+    session = auth_client.get("/api/scheduler/session").json()["data"]
+    assert session["metrics"]["assigned"] == 1
+    assert session["metrics"]["unresolved"] == 1
+    assert session["assignments"][0]["resourceId"] == "R1"
+
+    _advice_after, after = _public(auth_client)
+    assert after["status"] == "applied"
+    assert after["apply_result"]["simulation_id"] == "common"
+    assert len(after["apply_result"]["changes"]) == 1
+
+
+
+def test_goal_text_is_extracted_into_protect_lists(auth_client):
+    _install_run(auth_client, assignments=[SACRIFICE_BLOCK])
+    context = auth_client.app.state.scheduler_context
+    version = compute_workspace_version(context.loader.base_dir, context=context)
+    investigation = build_reconciliation_investigation(
+        context,
+        expected_version=version,
+        day=1,
+        goal="不要动 Instructor 0009",
+    )
+    task = investigation.public_task()
+    assert task["protect_teacher_aliases"] == ["Instructor 0009"]
+    assert "不要动 Instructor 0009" == investigation.goal

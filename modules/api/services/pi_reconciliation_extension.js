@@ -73,10 +73,19 @@ export default function registerPiReconciliation(pi) {
       ]),
       primary_simulation_id: Type.Optional(Type.String({ minLength: 1 })),
       fallback_simulation_id: Type.Optional(Type.String({ minLength: 1 })),
-      title: Type.String({ minLength: 1, maxLength: 160 }),
-      rationale: Type.String({ minLength: 1, maxLength: 1200 }),
-      trade_offs: Type.Array(Type.String({ maxLength: 400 }), { maxItems: 8 }),
-      limitations: Type.Array(Type.String({ maxLength: 400 }), { maxItems: 8 }),
+      title: Type.String({ minLength: 1, maxLength: 80 }),
+      focus_question: Type.Optional(Type.String({ minLength: 1, maxLength: 120 })),
+      rationale: Type.String({ minLength: 1, maxLength: 800 }),
+      trade_offs: Type.Array(Type.String({ maxLength: 200 }), { maxItems: 6 }),
+      limitations: Type.Array(Type.String({ maxLength: 200 }), { maxItems: 6 }),
+      agent_note: Type.Optional(Type.String({ maxLength: 200 })),
+      unknowns: Type.Optional(Type.Array(
+        Type.Object({
+          subject: Type.String({ minLength: 1, maxLength: 60 }),
+          note: Type.String({ maxLength: 200 }),
+        }),
+        { maxItems: 5 },
+      )),
       pending_decisions: Type.Optional(Type.Array(
         Type.Object({
           kind: Type.Union([

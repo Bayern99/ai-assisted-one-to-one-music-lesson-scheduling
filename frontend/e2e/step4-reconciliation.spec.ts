@@ -16,7 +16,7 @@ test('Step 4 provides a full reconciliation workspace and a bounded time-change 
 
   await page.goto(`${e2e.baseURL}/schedule/resolve`)
   await expect(page.getByLabel('Schedule grid')).toBeVisible()
-  await expect(page.getByLabel('Pi reconciliation investigation')).toBeVisible()
+  await expect(page.getByLabel('PI 排课调查')).toBeVisible()
   await expect(page.getByLabel('Needs resolution')).toHaveAttribute('data-width', '420')
   expect(await page.getByLabel('Needs resolution').evaluate((node) => getComputedStyle(node).display)).toBe('flex')
   await expect(page.getByRole('button', { name: 'Teachers' })).toHaveAttribute('aria-pressed', 'true')

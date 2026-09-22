@@ -326,7 +326,7 @@ describe('ResolvePage', () => {
 
   it('opens Resolve on the reconciliation teacher workspace', async () => {
     renderPage('/schedule/resolve')
-    expect(await screen.findByLabelText('Pi reconciliation investigation')).toBeVisible()
+    expect(await screen.findByLabelText('PI 排课调查')).toBeVisible()
     expect(screen.getByRole('button', { name: /^Reconciliation/ })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Teachers' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('region', { name: 'Needs resolution' })).toHaveAttribute('data-width', '420')
@@ -339,7 +339,7 @@ describe('ResolvePage', () => {
     const router = renderPage()
     await screen.findByLabelText('Schedule grid')
     fireEvent.click(screen.getByRole('button', { name: /^Reconciliation/ }))
-    expect(await screen.findByLabelText('Pi reconciliation investigation')).toBeVisible()
+    expect(await screen.findByLabelText('PI 排课调查')).toBeVisible()
     expect(screen.getByRole('region', { name: 'Needs resolution' })).toHaveAttribute('data-width', '420')
     expect(screen.getByLabelText('Schedule grid')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Teachers' })).toHaveAttribute('aria-pressed', 'true')
@@ -350,11 +350,11 @@ describe('ResolvePage', () => {
   it('exposes one whole-day investigation instead of the retired case and plan Pi cards', async () => {
     renderPage()
     fireEvent.click(await screen.findByRole('button', { name: /^Reconciliation/ }))
-    expect(await screen.findByLabelText('Pi model')).toHaveValue('openai-codex::gpt-5.6-luna')
+    expect(await screen.findByLabelText('Pi 模型')).toHaveValue('openai-codex::gpt-5.6-luna')
     expect(screen.getByRole('option', { name: 'deepseek / deepseek-flash' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'kimi-coding / k3' })).toBeInTheDocument()
-    expect(screen.getByLabelText('Pi thinking')).toHaveValue('off')
-    expect(screen.getByRole('button', { name: /Investigate Thursday's linked adjustments/ })).toBeEnabled()
+    expect(screen.getByLabelText('思考强度')).toHaveValue('off')
+    expect(screen.getByRole('button', { name: /调查周四的关联调整/ })).toBeEnabled()
     expect(screen.queryByRole('button', { name: 'Investigate with Pi' })).toBeNull()
     expect(screen.queryByText('Plan-level Pi intervention')).toBeNull()
     expect(screen.queryByLabelText(/do not touch this time/)).toBeNull()
