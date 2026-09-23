@@ -16,9 +16,14 @@ ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT_DIR"
 unset PYTHONHOME PYTHONPATH PYTHONNOUSERSITE
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:${PATH:-}"
+PRODUCT_VERSION="$(grep -E '^version = ' "$ROOT_DIR/pyproject.toml" | sed -E 's/^version = "([^"]+)".*/\1/')"
+if [[ -z "$PRODUCT_VERSION" ]]; then
+    echo "❌ 无法从 pyproject.toml 读取产品版本。"
+    exit 1
+fi
 
 echo "========================================"
-echo "  Music Lesson Scheduler 4.6.5 — 原生安装"
+echo "  Music Lesson Scheduler ${PRODUCT_VERSION} — 原生安装"
 echo "========================================"
 echo ""
 
@@ -83,7 +88,7 @@ fi
 
 echo ""
 echo "========================================"
-echo "  ✅ Music Lesson Scheduler 4.6.5 安装完成"
+echo "  ✅ Music Lesson Scheduler ${PRODUCT_VERSION} 安装完成"
 echo "========================================"
 echo ""
 echo "应用位置: $APP_PATH"

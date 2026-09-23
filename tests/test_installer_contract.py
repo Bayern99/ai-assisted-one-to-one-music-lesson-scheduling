@@ -115,3 +115,20 @@ def test_update_command_rebuilds_without_reinstalling_dependencies():
     assert "npm --prefix frontend ci" not in source
     assert 'PI_PYTHON_EXECUTABLE="$PYTHON_EXEC" ./script/build_and_run.sh --install' in source
     assert "cleanup_legacy_apps.sh" in source
+
+
+def test_command_banners_read_product_version_from_pyproject():
+    version_line = (
+        'PRODUCT_VERSION="$(grep -E \'^version = \' "$ROOT_DIR/pyproject.toml" '
+        '| sed -E \'s/^version = "([^"]+)".*/\\1/\')"'
+    )
+    installer = _installer_source()
+    starter = STARTER.read_text(encoding="utf-8")
+    updater = (Path(__file__).parents[1] / "Update Scheduler.command").read_text(
+        encoding="utf-8"
+    )
+
+    for source in (installer, starter, updater):
+        assert version_line in source
+        assert "4.6.5" not in source
+        assert "${PRODUCT_VERSION}" in source
