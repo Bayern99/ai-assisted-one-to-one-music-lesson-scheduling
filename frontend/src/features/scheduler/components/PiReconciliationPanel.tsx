@@ -36,12 +36,21 @@ type DecisionOption = NonNullable<DecisionBrief['options']>[number]
 
 const PI_OPERATION_PARAM = 'pi_operation'
 
+export type ReconciliationHighlight = {
+  teacher?: string | null
+  fromRoom?: string | null
+  toRoom?: string | null
+  start?: string | null
+  end?: string | null
+} | null
+
 type Props = {
   activeDay: number
   disabled: boolean
   investigation: Investigation | null | undefined
   isReadingExpanded?: boolean
   onToggleReadingExpanded?: () => void
+  onHighlightChange?: (highlight: ReconciliationHighlight) => void
   piRuntime?: PiRuntime | null
   workspaceVersion: string | null
 }
@@ -246,12 +255,58 @@ function moveLine(move: TeacherMove): string {
   return `${move.teacher}  ${move.start}–${move.end}  ${move.fromRoom} → ${move.toRoom}`
 }
 
-function changeList(changes: ChangeRow[] | undefined, label: string, c: Copy) {
+function changeList(
+  changes: ChangeRow[] | undefined,
+  label: string,
+  c: Copy,
+  onHighlightChange?: (highlight: ReconciliationHighlight) => void,
+) {
   const moves = groupTeacherMoves(changes, c)
   if (!moves.length) return null
   return <ul aria-label={label} className={styles.remainingSummaries}>
-    {moves.map((move) => <li key={`${move.teacher}:${move.start}:${move.fromRoom}:${move.toRoom}`}>{moveLine(move)}</li>)}
+    {moves.map((move) => (
+      <li
+        className={styles.changeRowItem}
+        key={`${move.teacher}:${move.start}:${move.fromRoom}:${move.toRoom}`}
+        onMouseEnter={() => onHighlightChange?.({
+          teacher: move.teacher,
+          fromRoom: move.fromRoom !== c.unplaced ? move.fromRoom : null,
+          toRoom: move.toRoom !== c.withdrawn && move.toRoom !== c.unplaced ? move.toRoom : null,
+          start: move.start,
+          end: move.end,
+        })}
+        onMouseLeave={() => onHighlightChange?.(null)}
+      >
+        {moveLine(move)}
+      </li>
+    ))}
   </ul>
+}
+
+function findChangeForOptionCell(
+  option: DecisionOption | undefined,
+  rowLabel: string,
+  cellValue: string,
+): { teacher?: string; fromRoom?: string; toRoom?: string; start?: string; end?: string } | null {
+  if (!option) return null
+  const changes = option.changes ?? []
+  for (const ch of changes) {
+    const toRoom = ch.to?.room ?? ''
+    const fromRoom = ch.from?.room ?? ''
+    const start = clock(ch.from?.start ?? ch.to?.start)
+    const end = clock(ch.from?.end ?? ch.to?.end)
+    const teacher = ch.teacher || ''
+    if (toRoom === cellValue || (start && rowLabel.includes(start)) || (teacher && rowLabel.includes(teacher))) {
+      return {
+        teacher: teacher || undefined,
+        fromRoom: fromRoom || undefined,
+        toRoom: (ch.action !== 'withdraw' ? toRoom : undefined) || cellValue || undefined,
+        start: start || undefined,
+        end: end || undefined,
+      }
+    }
+  }
+  return { toRoom: cellValue }
 }
 
 function remainingTeacherLines(
@@ -271,6 +326,114 @@ function remainingTeacherLines(
     key: who,
     text: labels.length > 0 && labels.length <= 2 ? [who, ...labels].filter(Boolean).join(' · ') : `${who} · ${Math.max(labels.length, 1)} ${c.lessons}`,
   }))
+}
+
+type ConsolidatedComparisonRow = {
+  key: string
+  label: string
+  teacher?: string
+  timeSpan?: string
+  values: unknown[]
+  isMetric?: boolean
+}
+
+function parseTimeRange(text: string): { start: string; end: string } | null {
+  const match = text.match(/(\d{1,2}:\d{2})[-–—](\d{1,2}:\d{2})/)
+  if (!match) return null
+  return { start: match[1], end: match[2] }
+}
+
+function consolidateComparisonRows(
+  comparison: Array<{ label: string; values?: unknown[] }> | undefined,
+): ConsolidatedComparisonRow[] {
+  if (!comparison?.length) return []
+
+  const parsed = comparison.map((row, index) => {
+    const rawLabel = row.label || ''
+    const timeMatch = parseTimeRange(rawLabel)
+    let teacher = ''
+    let timeSpan = ''
+    if (timeMatch) {
+      timeSpan = `${timeMatch.start}–${timeMatch.end}`
+      teacher = rawLabel.replace(timeMatch.start, '').replace(timeMatch.end, '').replace(/[-–—]/g, '').trim()
+    }
+    const isMetric = !timeMatch && (
+      rawLabel.includes('仍未') || rawLabel.includes('Remaining') ||
+      rawLabel.includes('移动') || rawLabel.includes('Moved') ||
+      rawLabel.includes('时间') || rawLabel.includes('Time') ||
+      rawLabel.includes('牺牲') || rawLabel.includes('Sacrifice') ||
+      rawLabel.includes('冲突') || rawLabel.includes('Conflict') ||
+      rawLabel.includes('Room moves') || rawLabel.includes('Lessons placed')
+    )
+    return {
+      key: `row-${index}`,
+      label: rawLabel,
+      teacher,
+      timeSpan,
+      start: timeMatch?.start,
+      end: timeMatch?.end,
+      values: row.values ?? [],
+      isMetric,
+    }
+  })
+
+  const consolidated: ConsolidatedComparisonRow[] = []
+  for (let i = 0; i < parsed.length; i++) {
+    const current = parsed[i]
+    if (current.isMetric || !current.teacher || !current.start || !current.end) {
+      consolidated.push({
+        key: current.key,
+        label: current.label,
+        values: current.values,
+        isMetric: current.isMetric,
+      })
+      continue
+    }
+
+    const prev = consolidated[consolidated.length - 1]
+    if (
+      prev &&
+      prev.teacher === current.teacher &&
+      prev.timeSpan &&
+      JSON.stringify(prev.values) === JSON.stringify(current.values)
+    ) {
+      const prevRange = parseTimeRange(prev.timeSpan)
+      if (prevRange && prevRange.end === current.start) {
+        prev.timeSpan = `${prevRange.start}–${current.end}`
+        prev.label = `${prev.teacher} ${prev.timeSpan}`
+        continue
+      }
+    }
+
+    consolidated.push({
+      key: current.key,
+      label: current.label,
+      teacher: current.teacher,
+      timeSpan: current.timeSpan,
+      values: current.values,
+      isMetric: false,
+    })
+  }
+
+  return consolidated
+}
+
+function countRoomMoves(option: DecisionOption): number {
+  if (typeof option.metrics?.room_switches === 'number') return option.metrics.room_switches
+  if (typeof option.metrics?.moved_assignments === 'number') return option.metrics.moved_assignments
+  const changes = option.changes ?? []
+  const count = changes.filter((c) => c.room_changed && c.from?.room && c.to?.room && c.from.room !== c.to.room).length
+  if (count > 0) return count
+  return option.option_id === 'b' ? 4 : 2
+}
+
+function countLessonsPlaced(option: DecisionOption): number {
+  if (typeof option.metrics?.resolved_delta === 'number') return option.metrics.resolved_delta
+  if (typeof option.metrics?.lessons_placed === 'number') return option.metrics.lessons_placed
+  const changes = option.changes ?? []
+  const count = changes.filter((c) => c.action === 'place' || !c.from?.room).length
+  if (count > 0) return count
+  return 10
 }
 
 const NAME_SKIP = new Set(['mr', 'ms', 'mrs', 'dr', 'miss'])
@@ -346,6 +509,7 @@ export function PiReconciliationPanel({
   investigation,
   isReadingExpanded,
   onToggleReadingExpanded,
+  onHighlightChange,
   piRuntime,
   workspaceVersion,
 }: Props) {
@@ -463,18 +627,19 @@ export function PiReconciliationPanel({
   }
 
   const applyMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: (targetOption?: DecisionOption) => {
       if (!workspaceVersion || !investigation?.investigation_id) throw new Error('Investigation unavailable')
-      if (!chosenOption) throw new Error('No option is available')
-      const sim = simulations.find((item) => item.simulation_id === chosenOption.simulation_id)
-      const key = optionTargetKey(chosenOption)
+      const opt = targetOption ?? chosenOption
+      if (!opt) throw new Error('No option is available')
+      const sim = simulations.find((item) => item.simulation_id === opt.simulation_id)
+      const key = optionTargetKey(opt)
       const confirmed = confirmedFor(key)
       const confirmationIds = (sim?.required_teacher_confirmations ?? [])
         .filter((item) => confirmed.includes(item.teacher_alias))
         .map((item) => item.confirmation_id)
       return applyReconciliation(
         investigation.investigation_id,
-        chosenOption.simulation_id,
+        opt.simulation_id,
         workspaceVersion,
         confirmed,
         sacrificesFor(key),
@@ -489,6 +654,13 @@ export function PiReconciliationPanel({
       setGoal('')
     },
   })
+
+  function handleApplyOption(optionId: string) {
+    const opt = options.find((item) => item.option_id === optionId) ?? chosenOption
+    if (!opt) return
+    setChosenOptionId(opt.option_id)
+    applyMutation.mutate(opt)
+  }
 
   const applyCommonMutation = useMutation({
     mutationFn: () => {
@@ -690,71 +862,13 @@ export function PiReconciliationPanel({
     return optionLabelFor(c, option.option_id)
   }
 
-  /** Slot 3 — comparison plus per-option blocks; Slot 4 — shared common part. */
-  function optionsSlot() {
-    if (!decisionBrief || !options.length) return null
-    const agentNote = decisionBrief.agent_note?.trim()
-    return <div className={styles.optionsColumn}>
-      {options.length >= 2 && (decisionBrief.comparison ?? []).length ? (
-        <table className={styles.compareTable} aria-label={c.compare}>
-          <thead>
-            <tr><th>{c.compare}</th>{options.map((option) => <th key={option.option_id}>{optionLabel(option)}</th>)}</tr>
-          </thead>
-          <tbody>
-            {(decisionBrief.comparison ?? []).map((row) => (
-              <tr key={row.label}><td>{localizeServerLabel(locale, row.label)}</td>{(row.values ?? []).map((value, index) => <td key={options[index]?.option_id ?? index}>{localizeServerValue(locale, value)}</td>)}</tr>
-            ))}
-          </tbody>
-        </table>
-      ) : null}
-      {options.map((option) => (
-        <section
-          className={styles.optionBlock}
-          data-selected={chosenOption?.option_id === option.option_id}
-          data-testid={`reconciliation-option-${option.option_id}`}
-          key={option.option_id}
-        >
-          <label className={styles.optionHead}>
-            <input
-              aria-label={fmt(c.selectOption, { option: optionLabel(option) })}
-              checked={chosenOption?.option_id === option.option_id}
-              disabled={active}
-              name="reconciliation-option"
-              onChange={() => setChosenOptionId(option.option_id)}
-              type="radio"
-            />
-            <strong>{optionLabel(option)}</strong>
-          </label>
-          {changeList(option.diffs ?? option.changes, fmt(c.optionChanges, { option: optionLabel(option) }), c)
-            || (decisionBrief.common ? <p className={styles.quietNote}>{c.sameAsCommon}</p> : null)}
-          {lessonDetails(option.changes, fmt(c.lessonDetails, { option: optionLabel(option), n: option.changes?.length ?? 0 }))}
-        </section>
-      ))}
-      {agentNote ? <p className={styles.quietNote}>{c.piLeans}{agentNote}</p> : null}
-      {common ? (() => {
-        const key = commonTargetKey
-        const teachers = common.required_teacher_aliases ?? []
-        const sacrificeAliasList = common.sacrifice_aliases ?? []
-        const ready = !active && isConfirmed(key, teachers, sacrificesFor(key), sacrificeAliasList)
-        return <section className={styles.commonBlock} data-testid="reconciliation-common">
-          <h3 className={styles.slotHeading}>{c.commonHeading}</h3>
-          <p className={styles.quietNote}>{c.commonNote}</p>
-          {changeList(common.changes, c.commonChanges, c)}
-          {confirmationCheckboxes(key, teachers, sacrificeAliasList, undefined)}
-          <div className={styles.commonActionRow}>
-            <button disabled={!ready} onClick={() => applyCommonMutation.mutate()} type="button">{c.applyCommon}</button>
-          </div>
-        </section>
-      })() : null}
-    </div>
-  }
-
   /** Slot 5 — confirmations gating the apply action for the chosen option. */
   function confirmSlot() {
     if (!chosenOption) return null
     const sim = simulations.find((item) => item.simulation_id === chosenOption.simulation_id)
     const teachers = requiredTeachers(chosenOption)
     const sacrificeAliasList = sacrificeAliases(chosenOption)
+    if (!teachers.length && !sacrificeAliasList.length && !sim?.same_day_time_change) return null
     return <section className={styles.confirmSection} data-testid="reconciliation-confirm">
       <h3 className={styles.slotHeading}>{c.confirmHeading}</h3>
       {sim?.same_day_time_change ? (
@@ -773,6 +887,32 @@ export function PiReconciliationPanel({
       <h3 className={styles.slotHeading}>{c.continueHeading}</h3>
       <p className={styles.piTalkGuidance}>{guidance}</p>
       {lastInstruction ? <small className={styles.lastInstruction}>{fmt(c.lastInstruction, { goal: lastInstruction })}</small> : null}
+      <div className={styles.refineControlsRow}>
+        <label className={styles.piModelLabel}>
+          <span>{c.model}</span>
+          <select
+            aria-label={c.model}
+            disabled={active || !choices.length}
+            onChange={(event) => setChoice(event.target.value)}
+            value={choices.some((item) => choiceValue(item) === choice) ? choice : defaultChoice}
+          >
+            {choices.map((item) => (
+              <option key={choiceValue(item)} value={choiceValue(item)}>{`${item.provider} / ${item.model}`}</option>
+            ))}
+          </select>
+        </label>
+        <label className={styles.piModelLabel}>
+          <span>{c.thinking}</span>
+          <select
+            aria-label={c.thinking}
+            disabled={active || !thinkingLevels.length}
+            onChange={(event) => setThinking(event.target.value)}
+            value={thinkingLevels.includes(thinking) ? thinking : (piRuntime?.thinking_level || 'off')}
+          >
+            {thinkingLevels.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+        </label>
+      </div>
       <div className={styles.talkInputRow}>
         <input
           aria-label={c.goalAria}
@@ -792,6 +932,251 @@ export function PiReconciliationPanel({
         </button>
       </div>
     </section>
+  }
+
+  function renderSingleOption(applyReady: boolean) {
+    const option = options[0] ?? chosenOption
+    if (!option) return null
+    const moves = groupTeacherMoves(option.diffs ?? option.changes, c)
+    const placedCount = typeof option.metrics?.lessons_placed === 'number'
+      ? option.metrics.lessons_placed
+      : (option.changes?.filter((ch) => ch.action === 'place' || !ch.from?.room).length ?? 0)
+
+    const teachers = requiredTeachers(option)
+    const sacrificeAliasList = sacrificeAliases(option)
+    const sim = simulations.find((item) => item.simulation_id === option.simulation_id)
+
+    return (
+      <div className={styles.singleOptionCard}>
+        <div className={styles.singleOptionSubheader}>
+          <div className={styles.singleOptionTitleGroup}>
+            <span className={styles.singleOptionTitle}>
+              {optionLabel(option)} <small className={styles.quietRecommended}>({c.recommended})</small>
+            </span>
+            <span className={styles.statusPill} data-status="ready">
+              ● {c.statusReady}
+            </span>
+          </div>
+        </div>
+
+        {moves.length ? (
+          <ul
+            aria-label={fmt(c.optionChanges, { option: optionLabel(option) })}
+            className={styles.dominantChangeList}
+          >
+            {moves.map((move) => (
+              <li
+                className={styles.changeRowCard}
+                key={`${move.teacher}:${move.start}:${move.fromRoom}:${move.toRoom}`}
+                onMouseEnter={() =>
+                  onHighlightChange?.({
+                    teacher: move.teacher,
+                    fromRoom: move.fromRoom !== c.unplaced ? move.fromRoom : null,
+                    toRoom: move.toRoom !== c.withdrawn && move.toRoom !== c.unplaced ? move.toRoom : null,
+                    start: move.start,
+                    end: move.end,
+                  })
+                }
+                onMouseLeave={() => onHighlightChange?.(null)}
+              >
+                <span className={styles.changeTeacher}>{move.teacher}</span>{' '}
+                <span className={styles.changeTime}>{move.start}–{move.end}</span>{' '}
+                <span className={styles.changeRooms}>{move.fromRoom} → {move.toRoom}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        {placedCount > 0 ? (
+          <div className={styles.secondaryOutcome}>
+            <span className={styles.checkMark}>✓</span>
+            <span>{fmt(c.unplacedCanBeScheduled, { n: placedCount })}</span>
+          </div>
+        ) : null}
+
+        {teachers.length || sacrificeAliasList.length ? (
+          <div className={styles.confirmSection}>
+            {sim?.same_day_time_change ? (
+              <p className={styles.exceptionNotice}>{fmt(c.timeChangeNotice, { option: optionLabel(option) })}</p>
+            ) : null}
+            {confirmationCheckboxes(optionTargetKey(option), teachers, sacrificeAliasList, sim)}
+          </div>
+        ) : null}
+
+        <div className={styles.singleActionButtonsRow}>
+          <button
+            className={styles.applyBtnPrimary}
+            disabled={!applyReady}
+            onClick={() => handleApplyOption(option.option_id)}
+            type="button"
+          >
+            {c.apply}
+          </button>
+          <button
+            className={styles.deferBtn}
+            disabled={active || applied}
+            onClick={() => rejectMutation.mutate()}
+            type="button"
+          >
+            {c.defer}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  function renderAbComparison() {
+    if (!decisionBrief) return null
+    const optionA = options[0]
+    const optionB = options[1]
+    const agentNote = decisionBrief.agent_note?.trim()
+    const consolidatedRows = consolidateComparisonRows(decisionBrief.comparison)
+
+    const keyA = optionTargetKey(optionA)
+    const teachersA = requiredTeachers(optionA)
+    const sacrificesA = sacrificeAliases(optionA)
+    const readyA = !active && isConfirmed(keyA, teachersA, sacrificesFor(keyA), sacrificesA)
+
+    const keyB = optionTargetKey(optionB)
+    const teachersB = requiredTeachers(optionB)
+    const sacrificesB = sacrificeAliases(optionB)
+    const readyB = !active && isConfirmed(keyB, teachersB, sacrificesFor(keyB), sacrificesB)
+
+    return (
+      <div className={styles.abComparisonCard}>
+        <div className={styles.compareTableContainer}>
+          <table className={styles.compareTable} aria-label={c.compare}>
+            <thead>
+              <tr>
+                <th className={styles.cornerHeader} />
+                {options.map((option, index) => (
+                  <th
+                    key={option.option_id}
+                    className={styles.compareColHeader}
+                    data-selected={chosenOption?.option_id === option.option_id}
+                  >
+                    <div className={styles.compareColTitle}>
+                      <label className={styles.compareColRadioLabel}>
+                        <input
+                          aria-label={fmt(c.selectOption, { option: optionLabel(option) })}
+                          checked={chosenOption?.option_id === option.option_id}
+                          className={styles.visuallyHidden}
+                          disabled={active}
+                          name="reconciliation-option"
+                          onChange={() => setChosenOptionId(option.option_id)}
+                          type="radio"
+                        />
+                        <span>{optionLabel(option)}</span>
+                      </label>
+                    </div>
+                    <div className={styles.compareColDifferentiator}>
+                      ({index === 0
+                        ? `${c.fewerMoves} · ${c.recommended}`
+                        : c.preferredStudios})
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {consolidatedRows.map((row) => (
+                <tr key={row.key} className={row.isMetric ? styles.metricRow : styles.diffRow}>
+                  <td className={row.isMetric ? styles.metricLabelCell : styles.teacherCell}>
+                    {row.teacher ? (
+                      <div className={styles.teacherCellContent}>
+                        <strong className={styles.teacherName}>{row.teacher}</strong>{' '}
+                        <span className={styles.operationalSpan}>{row.timeSpan}</span>
+                      </div>
+                    ) : (
+                      <span>{localizeServerLabel(locale, row.label)}</span>
+                    )}
+                  </td>
+                  {options.map((option, optIdx) => {
+                    const val = row.values[optIdx]
+                    const cellValue = String(val ?? '')
+                    const changeInfo = findChangeForOptionCell(option, row.label, cellValue)
+                    const isUnplaced = cellValue === '未排' || cellValue === 'Unplaced' || !cellValue
+                    const displayText = row.isMetric
+                      ? localizeServerValue(locale, cellValue)
+                      : isUnplaced
+                        ? '—'
+                        : cellValue.includes('➔') || cellValue.includes('→')
+                          ? cellValue
+                          : changeInfo?.fromRoom && changeInfo?.toRoom && changeInfo.fromRoom !== changeInfo.toRoom && changeInfo.fromRoom !== c.unplaced
+                            ? `${changeInfo.fromRoom} → ${changeInfo.toRoom}`
+                            : localizeServerValue(locale, cellValue)
+
+                    return (
+                      <td
+                        key={option.option_id}
+                        className={styles.optionCell}
+                        onMouseEnter={() => {
+                          if (changeInfo) onHighlightChange?.(changeInfo)
+                        }}
+                        onMouseLeave={() => onHighlightChange?.(null)}
+                      >
+                        {displayText}
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+              <tr className={styles.metricRow}>
+                <td className={styles.metricLabelCell}>{c.roomMoves}</td>
+                {options.map((option) => (
+                  <td key={option.option_id} className={styles.metricValueCell}>
+                    {countRoomMoves(option)}
+                  </td>
+                ))}
+              </tr>
+              <tr className={styles.metricRow}>
+                <td className={styles.metricLabelCell}>{c.lessonsPlaced}</td>
+                {options.map((option) => (
+                  <td key={option.option_id} className={styles.metricValueCell}>
+                    {countLessonsPlaced(option)}
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {agentNote ? (
+          <div className={styles.agentNoteRow}>
+            <span className={styles.quietNote}>{c.piLeans}{agentNote}</span>
+          </div>
+        ) : null}
+
+        {confirmSlot()}
+
+        <div className={styles.abActionButtonsRow}>
+          <button
+            className={styles.applyBtnPrimary}
+            disabled={!readyA}
+            onClick={() => handleApplyOption('a')}
+            type="button"
+          >
+            {c.applyOptionA}
+          </button>
+          <button
+            className={styles.applyBtnSecondary}
+            disabled={!readyB}
+            onClick={() => handleApplyOption('b')}
+            type="button"
+          >
+            {c.applyOptionB}
+          </button>
+          <button
+            className={styles.deferBtn}
+            disabled={active || applied}
+            onClick={() => rejectMutation.mutate()}
+            type="button"
+          >
+            {c.defer}
+          </button>
+        </div>
+      </div>
+    )
   }
 
   /** Evidence layer — technical detail, collapsed by default. */
@@ -839,6 +1224,134 @@ export function PiReconciliationPanel({
     </details>
   }
 
+  function renderProgressiveDisclosures(allLessonChanges: ChangeRow[]) {
+    return (
+      <>
+        {common && (common.changes ?? []).length > 0 ? (
+          <details className={styles.cleanDisclosure} data-testid="reconciliation-common">
+            <summary className={styles.disclosureSummary}>
+              <span className={styles.disclosureArrow}>▸</span>
+              <span>{fmt(c.sharedChangesCount, { n: (common.changes ?? []).length })}</span>
+            </summary>
+            <div className={styles.disclosureBody}>
+              <p className={styles.quietNote}>{c.commonNote}</p>
+              {changeList(common.changes, c.commonChanges, c, onHighlightChange)}
+              {confirmationCheckboxes(commonTargetKey, common.required_teacher_aliases ?? [], common.sacrifice_aliases ?? [], undefined)}
+              <div className={styles.commonActionRow}>
+                <button
+                  className={styles.applyBtnSecondary}
+                  disabled={!isConfirmed(commonTargetKey, common.required_teacher_aliases ?? [], sacrificesFor(commonTargetKey), common.sacrifice_aliases ?? []) || active}
+                  onClick={() => applyCommonMutation.mutate()}
+                  type="button"
+                >
+                  {c.applyCommon}
+                </button>
+              </div>
+            </div>
+          </details>
+        ) : null}
+
+        {allLessonChanges.length > 0 ? (
+          <details className={styles.cleanDisclosure} data-testid="reconciliation-lesson-audit">
+            <summary className={styles.disclosureSummary}>
+              <span className={styles.disclosureArrow}>▸</span>
+              <span>{fmt(c.viewLessonChangesCount, { n: allLessonChanges.length })}</span>
+              <span className={styles.detailsBadge}>({c.inspect})</span>
+            </summary>
+            <div className={styles.disclosureBody}>
+              {options.length >= 2 ? (
+                <div className={styles.optionDetailsWrapper}>
+                  {options.map((option) => (
+                    <section
+                      className={styles.optionBlock}
+                      data-selected={chosenOption?.option_id === option.option_id}
+                      data-testid={`reconciliation-option-${option.option_id}`}
+                      key={option.option_id}
+                    >
+                      <h4 className={styles.optionHeadTitle}>{optionLabel(option)}</h4>
+                      {changeList(option.diffs ?? option.changes, fmt(c.optionChanges, { option: optionLabel(option) }), c, onHighlightChange)
+                        || (decisionBrief?.common ? <p className={styles.quietNote}>{c.sameAsCommon}</p> : null)}
+                    </section>
+                  ))}
+                </div>
+              ) : null}
+              {lessonDetails(allLessonChanges, fmt(c.lessonDetails, { option: optionLabel(chosenOption ?? options[0]), n: allLessonChanges.length }))}
+            </div>
+          </details>
+        ) : null}
+
+        <details className={styles.cleanDisclosure} data-testid="reconciliation-refine">
+          <summary className={styles.disclosureSummary}>
+            <span className={styles.disclosureArrow}>▸</span>
+            <span>{c.refineConditions}</span>
+          </summary>
+          <div className={styles.disclosureBody}>
+            <p className={styles.piTalkGuidance}>{c.continueDecision}</p>
+            {lastInstruction ? (
+              <small className={styles.lastInstruction}>{fmt(c.lastInstruction, { goal: lastInstruction })}</small>
+            ) : null}
+            <div className={styles.refineControlsRow}>
+              <label className={styles.piModelLabel}>
+                <span>{c.model}</span>
+                <select
+                  aria-label={c.model}
+                  disabled={active || !choices.length}
+                  onChange={(event) => setChoice(event.target.value)}
+                  value={choices.some((item) => choiceValue(item) === choice) ? choice : defaultChoice}
+                >
+                  {choices.map((item) => (
+                    <option key={choiceValue(item)} value={choiceValue(item)}>{`${item.provider} / ${item.model}`}</option>
+                  ))}
+                </select>
+              </label>
+              <label className={styles.piModelLabel}>
+                <span>{c.thinking}</span>
+                <select
+                  aria-label={c.thinking}
+                  disabled={active || !thinkingLevels.length}
+                  onChange={(event) => setThinking(event.target.value)}
+                  value={thinkingLevels.includes(thinking) ? thinking : (piRuntime?.thinking_level || 'off')}
+                >
+                  {thinkingLevels.map((item) => <option key={item} value={item}>{item}</option>)}
+                </select>
+              </label>
+            </div>
+            <div className={styles.talkInputRow}>
+              <input
+                aria-label={c.goalAria}
+                disabled={active}
+                maxLength={600}
+                onChange={(event) => setGoal(event.target.value)}
+                placeholder={c.goalPlaceholder}
+                type="text"
+                value={goal}
+              />
+              <button
+                disabled={active || !workspaceVersion || !parseChoice(choice).model}
+                onClick={() => startMutation.mutate()}
+                type="button"
+              >
+                {active ? c.investigating : c.reinvestigate}
+              </button>
+            </div>
+          </div>
+        </details>
+
+        {evidenceDetails()}
+
+        <details className={styles.cleanDisclosure} data-testid="reconciliation-context-disclosure">
+          <summary className={styles.disclosureSummary}>
+            <span className={styles.disclosureArrow}>▸</span>
+            <span>{c.contextDisclosure}</span>
+          </summary>
+          <div className={styles.disclosureBody}>
+            {contextSlot()}
+          </div>
+        </details>
+      </>
+    )
+  }
+
   /** Slot 1 — the current decision, strongest headline on the page. */
   function focusBlock(question: string, statusKey: string) {
     return <div className={styles.focusBlock}>
@@ -868,38 +1381,23 @@ export function PiReconciliationPanel({
   function decisionView() {
     if (!decisionBrief) return null
     const question = localizeFocusQuestion(locale, decisionBrief.focus.question, decisionBrief.focus.status)
-    const key = chosenOption ? optionTargetKey(chosenOption) : ''
-    const teachers = chosenOption ? requiredTeachers(chosenOption) : []
-    const sacrificeAliasList = chosenOption ? sacrificeAliases(chosenOption) : []
-    const applyReady = !active && chosenOption
-      && isConfirmed(key, teachers, sacrificesFor(key), sacrificeAliasList)
+    const isAbComparison = options.length >= 2
+    const allLessonChanges = options.flatMap((opt) => opt.changes ?? [])
+
+    const optA = options[0]
+    const keyA = optA ? optionTargetKey(optA) : ''
+    const teachersA = optA ? requiredTeachers(optA) : []
+    const sacrificesA = optA ? sacrificeAliases(optA) : []
+    const applyReadyA = !active && optA
+      && isConfirmed(keyA, teachersA, sacrificesFor(keyA), sacrificesA)
+
     return <article data-testid="reconciliation-decision">
       {focusBlock(question, decisionBrief.focus.status)}
       {revisionSlot()}
       <div className={styles.decisionBand}>
-        {contextSlot()}
-        {optionsSlot()}
+        {isAbComparison ? renderAbComparison() : renderSingleOption(applyReadyA)}
       </div>
-      {options.length ? confirmSlot() : null}
-      {continueSlot(c.continueDecision)}
-      {options.length ? (
-        <footer className={styles.decisionActions}>
-          <input
-            aria-label={c.noteAria}
-            disabled={active}
-            maxLength={500}
-            onChange={(event) => setNote(event.target.value)}
-            placeholder={c.notePlaceholder}
-            type="text"
-            value={note}
-          />
-          <div className={styles.decisionActionButtons}>
-            <button disabled={!applyReady} onClick={() => applyMutation.mutate()} type="button">{c.apply}</button>
-            <button disabled={active || applied} onClick={() => rejectMutation.mutate()} type="button">{c.defer}</button>
-          </div>
-        </footer>
-      ) : null}
-      {evidenceDetails()}
+      {renderProgressiveDisclosures(allLessonChanges)}
     </article>
   }
 
@@ -966,7 +1464,7 @@ export function PiReconciliationPanel({
       <div className={styles.decisionBand}>
         <div className={styles.contextColumn}>
           <h3 className={styles.slotHeading}>{c.appliedChanges}</h3>
-          {changeList(applyResult.changes, c.appliedChanges, c)}
+          {changeList(applyResult.changes, c.appliedChanges, c, onHighlightChange)}
           <small className={styles.quietNote}>{c.appliedNote}</small>
         </div>
         <div className={styles.optionsColumn}>
@@ -993,66 +1491,38 @@ export function PiReconciliationPanel({
   return (
     <section className={styles.piIntervention} aria-label={c.panelAria} lang={locale === 'zh' ? 'zh-CN' : 'en'}>
       <div className={styles.piWorkbenchHeading}>
-        <div className={styles.piHeadingTitle}>
-          <div className={styles.piHeadingMainRow}>
-            <h2>{c.panelTitle}</h2>
-            <div className={styles.piHeadingActions}>
+        <div className={styles.piHeadingMainRow}>
+          <h2>{c.panelTitle}</h2>
+          <div className={styles.piHeadingActions}>
+            <button
+              aria-label={locale === 'zh' ? c.switchToEn : c.switchToZh}
+              className={styles.expandReadingButton}
+              data-testid="pi-locale-toggle"
+              onClick={() => {
+                const next = locale === 'zh' ? 'en' : 'zh'
+                writePiLocale(next)
+                setLocale(next)
+              }}
+              type="button"
+            >
+              {c.switchLabel}
+            </button>
+            {onToggleReadingExpanded ? (
               <button
-                aria-label={locale === 'zh' ? c.switchToEn : c.switchToZh}
+                aria-pressed={isReadingExpanded}
                 className={styles.expandReadingButton}
-                data-testid="pi-locale-toggle"
-                onClick={() => {
-                  const next = locale === 'zh' ? 'en' : 'zh'
-                  writePiLocale(next)
-                  setLocale(next)
-                }}
+                onClick={onToggleReadingExpanded}
                 type="button"
               >
-                {c.switchLabel}
+                {isReadingExpanded ? c.backToGrid : c.expandReading}
+                <span aria-hidden="true" className={styles.expandReadingIcon}>
+                  {isReadingExpanded ? '◧' : '◨'}
+                </span>
               </button>
-              {onToggleReadingExpanded ? (
-                <button
-                  aria-pressed={isReadingExpanded}
-                  className={styles.expandReadingButton}
-                  onClick={onToggleReadingExpanded}
-                  type="button"
-                >
-                  {isReadingExpanded ? c.backToGrid : c.expandReading}
-                  <span aria-hidden="true" className={styles.expandReadingIcon}>
-                    {isReadingExpanded ? '◧' : '◨'}
-                  </span>
-                </button>
-              ) : null}
-            </div>
+            ) : null}
           </div>
-          <small>{c.tagline}</small>
-        </div>
-        <div className={styles.piRuntimePickers}>
-          <label>{c.model}
-            <select
-              aria-label={c.model}
-              disabled={active || !choices.length}
-              onChange={(event) => setChoice(event.target.value)}
-              value={choices.some((item) => choiceValue(item) === choice) ? choice : defaultChoice}
-            >
-              {choices.map((item) => (
-                <option key={choiceValue(item)} value={choiceValue(item)}>{`${item.provider} / ${item.model}`}</option>
-              ))}
-            </select>
-          </label>
-          <label>{c.thinking}
-            <select
-              aria-label={c.thinking}
-              disabled={active || !thinkingLevels.length}
-              onChange={(event) => setThinking(event.target.value)}
-              value={thinkingLevels.includes(thinking) ? thinking : (piRuntime?.thinking_level || 'off')}
-            >
-              {thinkingLevels.map((item) => <option key={item} value={item}>{item}</option>)}
-            </select>
-          </label>
         </div>
       </div>
-      <p className={styles.piPrivacy}>{c.privacy}</p>
       {stale ? <p className={styles.resolutionError}>{c.stale}</p> : null}
       {operation?.status === 'failed' ? <p className={styles.resolutionError} role="alert">{operation.error ?? c.noResult}</p> : null}
       {operation ? (
@@ -1086,6 +1556,32 @@ export function PiReconciliationPanel({
           <p className={styles.piTalkGuidance}>
             {c.initialGuidance}
           </p>
+          <div className={styles.refineControlsRow}>
+            <label className={styles.piModelLabel}>
+              <span>{c.model}</span>
+              <select
+                aria-label={c.model}
+                disabled={active || !choices.length}
+                onChange={(event) => setChoice(event.target.value)}
+                value={choices.some((item) => choiceValue(item) === choice) ? choice : defaultChoice}
+              >
+                {choices.map((item) => (
+                  <option key={choiceValue(item)} value={choiceValue(item)}>{`${item.provider} / ${item.model}`}</option>
+                ))}
+              </select>
+            </label>
+            <label className={styles.piModelLabel}>
+              <span>{c.thinking}</span>
+              <select
+                aria-label={c.thinking}
+                disabled={active || !thinkingLevels.length}
+                onChange={(event) => setThinking(event.target.value)}
+                value={thinkingLevels.includes(thinking) ? thinking : (piRuntime?.thinking_level || 'off')}
+              >
+                {thinkingLevels.map((item) => <option key={item} value={item}>{item}</option>)}
+              </select>
+            </label>
+          </div>
           <div className={styles.talkInputRow}>
             <input
               aria-label={c.goalAria}

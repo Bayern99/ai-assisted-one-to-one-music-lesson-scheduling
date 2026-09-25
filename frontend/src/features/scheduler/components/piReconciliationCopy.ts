@@ -160,6 +160,26 @@ type Copy = {
   effectCommonLost: string
   effectContinued: string
   none: string
+  interruptedBudgetWithUsable: string
+  interruptedBudgetNoPackage: string
+  tagNewPlacement: string
+  tagRoomMove: string
+  tagTimeChange: string
+  tagWithdraw: string
+  roomAvailable: string
+  refineConditions: string
+  impactSummary: string
+  applyOptionA: string
+  applyOptionB: string
+  fewerMoves: string
+  preferredStudios: string
+  roomMoves: string
+  lessonsPlaced: string
+  sharedChangesCount: string
+  viewLessonChangesCount: string
+  unplacedCanBeScheduled: string
+  contextDisclosure: string
+  recommended: string
   days: [string, string, string, string, string, string, string]
 }
 
@@ -306,6 +326,26 @@ export const COPY: Record<PiLocale, Copy> = {
     effectCommonLost: '此前的共同部分在新约束下不再成立。',
     effectContinued: '在同一条决定上继续调查；可行方案集合没有因新约束改变。',
     none: '无',
+    interruptedBudgetWithUsable: '调查在达到上限前被中断；已验证的方案仍可应用，未覆盖的部分需要重新调查。',
+    interruptedBudgetNoPackage: '调查在达到上限前被中断，没有形成可执行方案；已完成的检查保留作参考。',
+    tagNewPlacement: '新安置',
+    tagRoomMove: '换房间',
+    tagTimeChange: '改时间',
+    tagWithdraw: '退回未排',
+    roomAvailable: '全天可用',
+    refineConditions: '补充条件让 Pi 微调',
+    impactSummary: '{rooms} 间换房 ➔ 排入 {placed} 节未排课',
+    applyOptionA: '应用方案 A',
+    applyOptionB: '应用方案 B',
+    fewerMoves: '较少换房',
+    preferredStudios: '保留首选琴房',
+    roomMoves: '换房次数',
+    lessonsPlaced: '排入课节',
+    sharedChangesCount: '双方共同变更 ({n} 项)',
+    viewLessonChangesCount: '查看 {n} 节课变更明细',
+    unplacedCanBeScheduled: '现已可排入 {n} 节此前未排课程',
+    contextDisclosure: '相关教师与琴房安排',
+    recommended: '推荐',
     days: ['周日', '周一', '周二', '周三', '周四', '周五', '周六'],
   },
   en: {
@@ -386,7 +426,7 @@ export const COPY: Record<PiLocale, Copy> = {
     timeChangeNotice: '{option} includes a same-day time-change exception. Each listed teacher must agree before apply.',
     noConfirm: 'No extra confirmation. This option can be applied.',
     continueHeading: 'Continue',
-    lastInstruction: 'Last instruction:{goal}',
+    lastInstruction: 'Last instruction: {goal}',
     goalAria: 'Message to Pi',
     goalPlaceholder: 'New conditions: whose day to leave alone, who may change time, what to do with leftovers…',
     investigating: 'Pi is investigating…',
@@ -450,6 +490,26 @@ export const COPY: Record<PiLocale, Copy> = {
     effectCommonLost: 'The previous shared part no longer holds under the new constraint.',
     effectContinued: 'Continuing the same decision; the feasible set did not change under the new constraint.',
     none: 'None',
+    interruptedBudgetWithUsable: 'Search cap reached; validated package can still be applied.',
+    interruptedBudgetNoPackage: 'Search cap reached before finding a feasible package; completed checks kept.',
+    tagNewPlacement: 'New Placement',
+    tagRoomMove: 'Room Shift',
+    tagTimeChange: 'Time Shift',
+    tagWithdraw: 'Withdrawn',
+    roomAvailable: 'Available all day',
+    refineConditions: 'Refine conditions with Pi',
+    impactSummary: '{rooms} room moves ➔ {placed} unplaced lessons placed',
+    applyOptionA: 'Apply Option A',
+    applyOptionB: 'Apply Option B',
+    fewerMoves: 'Fewer moves',
+    preferredStudios: 'Keeps preferred studios',
+    roomMoves: 'Room moves',
+    lessonsPlaced: 'Lessons placed',
+    sharedChangesCount: 'Shared changes ({n} items)',
+    viewLessonChangesCount: 'View {n} lesson changes',
+    unplacedCanBeScheduled: '{n} previously unplaced lessons can now be scheduled',
+    contextDisclosure: 'Context & teacher days',
+    recommended: 'Recommended',
     days: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
   },
 }
@@ -471,6 +531,8 @@ const KNOWN_QUESTIONS: Record<string, Exclude<keyof Copy, 'days'>> = {
   '需要在两个可行方案之间做选择。': 'focusChoice',
   '还缺少可能改变结论的信息，暂不宜直接执行。': 'focusMissing',
   '当前没有可行的完整方案。': 'focusNoPackage',
+  '调查在达到上限前被中断；已验证的方案仍可应用，未覆盖的部分需要重新调查。': 'interruptedBudgetWithUsable',
+  '调查在达到上限前被中断，没有形成可执行方案；已完成的检查保留作参考。': 'interruptedBudgetNoPackage',
 }
 
 export function fmt(template: string, vars: Record<string, string | number>): string {

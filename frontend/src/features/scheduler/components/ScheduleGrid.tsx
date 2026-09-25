@@ -10,6 +10,7 @@ import { GhostAssignmentBlock } from './GhostAssignmentBlock'
 import { ReservationDateChips } from './ReservationDateChips'
 import { buildTeacherSegments, teacherSegmentKey, type SchedulePresentationMode, type TeacherSegment } from './teacherPresentation'
 import type { Assignment as AuthorityAssignment, ReservationMarker } from '../scheduleAuthority'
+import type { ReconciliationHighlight } from './PiReconciliationPanel'
 
 const DAYS = [
   { id: 1, label: 'Monday' },
@@ -180,6 +181,7 @@ interface ScheduleGridProps {
   onSelect: (id: string) => void
   onSelectSegment?: (segment: TeacherSegment) => void
   presentationMode?: SchedulePresentationMode
+  reconciliationHighlight?: ReconciliationHighlight
   reservationMarkers?: ReservationMarker[]
   rooms: SchedulerSession['rooms']
   selectedId: string | null
@@ -190,6 +192,37 @@ interface ScheduleGridProps {
 
 function assignmentSearchText(view: AssignmentView) {
   return [view.title, view.instructor, view.person, view.room, view.kind].filter(Boolean).join(' ').toLowerCase()
+}
+
+function getReconciliationRole(
+  highlight: ReconciliationHighlight,
+  room: string | null | undefined,
+  instructor: string | null | undefined,
+  start: string | null | undefined,
+  end: string | null | undefined,
+): 'source' | 'destination' | null {
+  if (!highlight) return null
+  const roomMatchFrom = Boolean(highlight.fromRoom && room === highlight.fromRoom)
+  const roomMatchTo = Boolean(highlight.toRoom && room === highlight.toRoom)
+  if (!roomMatchFrom && !roomMatchTo) return null
+
+  if (highlight.teacher && instructor) {
+    const tA = highlight.teacher.trim().toLowerCase()
+    const tB = instructor.trim().toLowerCase()
+    if (!tA.includes(tB) && !tB.includes(tA)) return null
+  }
+
+  if (highlight.start && highlight.end && start && end) {
+    const hStart = clockToMinutes(highlight.start)
+    const hEnd = clockToMinutes(highlight.end)
+    const sStart = clockToMinutes(start)
+    const sEnd = clockToMinutes(end)
+    if (hStart !== null && hEnd !== null && sStart !== null && sEnd !== null) {
+      if (sStart >= hEnd || sEnd <= hStart) return null
+    }
+  }
+
+  return roomMatchFrom ? 'source' : 'destination'
 }
 
 export function ScheduleGrid({
@@ -209,6 +242,7 @@ export function ScheduleGrid({
   onSelect,
   onSelectSegment,
   presentationMode = 'lessons',
+  reconciliationHighlight = null,
   reservationMarkers = [],
   rooms,
   selectedId,
@@ -397,6 +431,11 @@ export function ScheduleGrid({
     ? targetPlacement(visibleDropTarget, visibleDropDuration, roomIds, timeBounds)
     : null
 
+  const destinationPlacement = useMemo(() => {
+    if (!reconciliationHighlight?.toRoom || !reconciliationHighlight.start || !reconciliationHighlight.end) return null
+    return timeSpanPlacement(reconciliationHighlight.toRoom, reconciliationHighlight.start, reconciliationHighlight.end, roomIds, timeBounds)
+  }, [reconciliationHighlight, roomIds, timeBounds])
+
   return (
     <DndContext
       accessibility={{ screenReaderInstructions: { draggable: 'Drag with a pointer, or select this assignment and use the editor for keyboard movement.' } }}
@@ -494,6 +533,21 @@ export function ScheduleGrid({
                 style={{ gridRow: `2 / span ${roomIds.length}`, marginInlineStart: nowPosition }}
               /> : null}
               {visibleDropPlacement ? <div aria-hidden="true" className={styles.dropTarget} data-state={issueProposal && visibleDropTarget === issueProposal ? 'proposal' : 'preview'} data-testid="schedule-drop-target" style={visibleDropPlacement}>{issueProposal && visibleDropTarget === issueProposal ? `PROPOSED · ${issueProposalLabel ?? 'lesson'}` : null}</div> : null}
+              {destinationPlacement ? (
+                <div
+                  aria-hidden="true"
+                  className={styles.reconciliationTargetPreview}
+                  data-testid="reconciliation-target-preview"
+                  style={destinationPlacement}
+                >
+                  <span className={styles.assignmentTopline}>
+                    <span className={styles.assignmentTime}>{reconciliationHighlight?.start}–{reconciliationHighlight?.end}</span>
+                    <span className={styles.assignmentKind}>Target</span>
+                  </span>
+                  <strong className={styles.teacherSegmentName}>{reconciliationHighlight?.teacher || reconciliationHighlight?.toRoom}</strong>
+                  <span className={styles.assignmentInstructor}>→ {reconciliationHighlight?.toRoom}</span>
+                </div>
+              ) : null}
               {teacherView
                 ? [
                   ...placedSegments.map(({ segment, style }) => {
@@ -502,6 +556,13 @@ export function ScheduleGrid({
                     const label = segment.isLecture ? segment.title || 'Lecture' : segment.instructor
                     const selected = selectedSegmentKey === teacherSegmentKey(segment)
                     const Tag = segment.isLecture ? 'div' : 'button'
+                    const reconciliationRole = getReconciliationRole(
+                      reconciliationHighlight,
+                      segment.room,
+                      segment.instructor,
+                      segment.start,
+                      segment.end,
+                    )
                     return (
                       <Tag
                         aria-label={segment.isLecture
@@ -514,6 +575,7 @@ export function ScheduleGrid({
                         data-kind={segment.kind}
                         data-lecture={segment.isLecture ? 'true' : undefined}
                         data-presentation="teacher"
+                        data-reconciliation-highlight={reconciliationRole ?? undefined}
                         data-room={segment.room}
                         data-teacher-tone={segment.isLecture ? undefined : segment.tone}
                         data-testid="teacher-segment"
@@ -534,18 +596,28 @@ export function ScheduleGrid({
                   }),
                 ]
                 : [
-                  ...placed.map(({ assignment, style }) => (
-                    <AssignmentBlock
-                      assignment={assignment}
-                      dragDisabled={commandPending || !workspaceVersion}
-                      issueMatch={issueMatchIds.has(assignment.id)}
-                      key={assignment.id}
-                      onKeyDown={(event) => handleKeyboard(assignment.id, event)}
-                      onSelect={selectAssignment}
-                      placement={style}
-                      selected={selectedId === assignment.id}
-                    />
-                  )),
+                  ...placed.map(({ assignment, style, view }) => {
+                    const reconciliationRole = getReconciliationRole(
+                      reconciliationHighlight,
+                      view.room,
+                      view.instructor,
+                      view.start,
+                      view.end,
+                    )
+                    return (
+                      <AssignmentBlock
+                        assignment={assignment}
+                        dragDisabled={commandPending || !workspaceVersion}
+                        issueMatch={issueMatchIds.has(assignment.id)}
+                        key={assignment.id}
+                        onKeyDown={(event) => handleKeyboard(assignment.id, event)}
+                        onSelect={selectAssignment}
+                        placement={style}
+                        reconciliationHighlight={reconciliationRole}
+                        selected={selectedId === assignment.id}
+                      />
+                    )
+                  }),
                   ...placedGhosts.map(({ assignment, style }) => (
                     <GhostAssignmentBlock assignment={assignment} key={`ghost:${assignment.id}`} placement={style} />
                   )),

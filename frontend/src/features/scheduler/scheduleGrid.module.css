@@ -438,6 +438,39 @@
   background: var(--accent-soft);
 }
 
+.assignment[data-reconciliation-highlight='source'] {
+  border-color: var(--accent) !important;
+  border-left-color: var(--accent) !important;
+  background: var(--accent-soft) !important;
+  box-shadow: 0 0 0 1px var(--accent);
+  z-index: 6;
+}
+
+.assignment[data-reconciliation-highlight='destination'] {
+  border-color: var(--accent) !important;
+  border-style: dashed !important;
+  background: color-mix(in srgb, var(--accent) 15%, var(--raised)) !important;
+  box-shadow: 0 0 0 1px var(--accent);
+  z-index: 6;
+}
+
+.reconciliationTargetPreview {
+  grid-column: 2;
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
+  padding: 4px 6px;
+  border: 1.5px dashed var(--accent);
+  border-radius: var(--radius-micro);
+  background: color-mix(in srgb, var(--accent) 12%, var(--raised));
+  color: var(--accent-readable);
+  pointer-events: none;
+  overflow: hidden;
+}
+
 .unplacedAssignments {
   position: sticky;
   z-index: 8;

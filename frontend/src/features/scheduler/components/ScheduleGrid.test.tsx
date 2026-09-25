@@ -158,4 +158,83 @@ describe('ScheduleGrid', () => {
     view.rerender(<ScheduleGrid activeDay={2} assignments={[]} issueMatchIds={new Set()} now={mondayAtNoon} onDayChange={vi.fn()} onSelect={vi.fn()} rooms={threeRooms} selectedId={null} />)
     expect(within(view.container).queryByTestId('current-time-marker')).not.toBeInTheDocument()
   })
+
+  it('在教师模式下按 reconciliationHighlight 高亮源教师区块并显示目标预览', () => {
+    const sample = [
+      { id: 't1', title: 'S1', type: 'weekly_lesson', resourceId: 'R1', daysOfWeek: [1], startTime: '10:00', endTime: '12:00', extendedProps: { Instructor: 'Teacher012' } },
+    ]
+    const view = render(
+      <ScheduleGrid
+        activeDay={1}
+        assignments={sample}
+        issueMatchIds={new Set()}
+        onDayChange={vi.fn()}
+        onSelect={vi.fn()}
+        presentationMode="teachers"
+        reconciliationHighlight={{
+          teacher: 'Teacher012',
+          fromRoom: 'R1',
+          toRoom: 'R2',
+          start: '10:00',
+          end: '12:00',
+        }}
+        rooms={rooms}
+        selectedId={null}
+      />
+    )
+
+    const segment = screen.getByTestId('teacher-segment')
+    expect(segment).toHaveAttribute('data-reconciliation-highlight', 'source')
+
+    const targetPreview = screen.getByTestId('reconciliation-target-preview')
+    expect(targetPreview).toBeVisible()
+    expect(targetPreview).toHaveTextContent('Teacher012')
+    expect(targetPreview).toHaveTextContent('→ R2')
+
+    // 清除高亮时预览消失
+    view.rerender(
+      <ScheduleGrid
+        activeDay={1}
+        assignments={sample}
+        issueMatchIds={new Set()}
+        onDayChange={vi.fn()}
+        onSelect={vi.fn()}
+        presentationMode="teachers"
+        reconciliationHighlight={null}
+        rooms={rooms}
+        selectedId={null}
+      />
+    )
+    expect(screen.queryByTestId('reconciliation-target-preview')).not.toBeInTheDocument()
+    expect(screen.getByTestId('teacher-segment')).not.toHaveAttribute('data-reconciliation-highlight')
+  })
+
+  it('在课程模式下按 reconciliationHighlight 高亮匹配的课表卡片', () => {
+    const sample = [
+      { id: 'c1', title: 'Lesson 1', type: 'weekly_lesson', resourceId: 'R1', daysOfWeek: [1], startTime: '10:00', endTime: '11:00', extendedProps: { Instructor: 'Teacher018' } },
+    ]
+    render(
+      <ScheduleGrid
+        activeDay={1}
+        assignments={sample}
+        issueMatchIds={new Set()}
+        onDayChange={vi.fn()}
+        onSelect={vi.fn()}
+        presentationMode="lessons"
+        reconciliationHighlight={{
+          teacher: 'Teacher018',
+          fromRoom: 'R1',
+          toRoom: 'R2',
+          start: '10:00',
+          end: '11:00',
+        }}
+        rooms={rooms}
+        selectedId={null}
+      />
+    )
+
+    const block = screen.getByRole('button', { name: /Teacher018/ })
+    expect(block).toHaveAttribute('data-reconciliation-highlight', 'source')
+    expect(screen.getByTestId('reconciliation-target-preview')).toBeVisible()
+  })
 })

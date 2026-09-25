@@ -146,12 +146,12 @@
 .resolutionWorkspace { min-width: 0; height: 100%; padding: 14px 12px 10px; border: 0; border-right: 1px solid var(--structure-strong); border-radius: 0; box-shadow: none; background: var(--surface-subtle); }
 .piIntervention {
   position: relative;
-  margin: 10px 2px 16px;
-  padding: 12px;
-  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--bezel-shell-border));
-  border-radius: var(--radius-shell);
-  background: linear-gradient(color-mix(in srgb, var(--accent-soft) 62%, var(--raised)), var(--raised));
-  box-shadow: var(--elevation-raised), var(--bezel-inset-highlight);
+  margin: 8px 2px 16px;
+  padding: 14px 14px 16px;
+  border: 1px solid var(--structure-strong);
+  border-radius: var(--radius-core);
+  background: var(--raised);
+  box-shadow: var(--shadow-panel-subtle);
 }
 .piIntervention > button { width: 100%; margin-top: 10px; }
 .piProgress { display: grid; gap: 4px; margin-top: 10px; padding: 8px 10px; border: 1px solid var(--structure); border-radius: var(--radius-shell); background: var(--surface-subtle); }
@@ -690,17 +690,309 @@ button:hover > .ctaIcon { transform: translate(2px, -1px) scale(1.06); }
   line-height: 1.35;
 }
 
-/* Slots 2–4 band: 相关背景 left, 方案比较 right; stacks on narrow viewports. */
+/* Decision surface: single vertical column flow */
 .decisionBand {
-  display: grid;
-  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
-  gap: 14px;
-  align-items: start;
-  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
 }
-@media (max-width: 760px) {
-  .decisionBand { grid-template-columns: minmax(0, 1fr); }
+
+.singleOptionSubheader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
 }
+.singleOptionTitleGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.singleOptionTitle {
+  font-size: calc(13.5px + var(--text-size-offset));
+  font-weight: 650;
+  color: var(--ink);
+}
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: calc(10.5px + var(--text-size-offset));
+  font-weight: 550;
+  background: color-mix(in srgb, var(--accent-soft) 55%, var(--raised));
+  color: var(--accent-readable);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--structure));
+}
+
+.dominantChangeList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.changeRowCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border: 1px solid var(--structure-emphasis);
+  border-radius: var(--radius-sm);
+  background: var(--raised);
+  font-size: calc(12.5px + var(--text-size-offset));
+  transition: border-color var(--motion-hover) var(--motion), background var(--motion-hover) var(--motion), box-shadow var(--motion-hover) var(--motion);
+  cursor: pointer;
+}
+.changeRowCard:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: var(--shadow-panel-subtle);
+}
+.changeTeacher { font-weight: 650; color: var(--ink); flex: 1 1 auto; }
+.changeTime { font-family: var(--font-mono); color: var(--muted-readable); margin: 0 12px; }
+.changeRooms { font-weight: 600; color: var(--ink); white-space: nowrap; }
+
+.secondaryOutcome {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 10px;
+  font-size: calc(12.5px + var(--text-size-offset));
+  color: var(--ink);
+}
+.checkMark { color: var(--accent-readable); font-weight: 700; }
+
+.singleActionButtonsRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.abActionButtonsRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+  margin-bottom: 8px;
+}
+.applyBtnPrimary {
+  flex: 1 1 auto;
+  min-height: 36px;
+  padding: 8px 16px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-sm);
+  background: var(--ink);
+  color: var(--on-accent);
+  font-weight: 600;
+  font-size: calc(12px + var(--text-size-offset));
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+  text-align: center;
+}
+.applyBtnPrimary:disabled { opacity: 0.45; cursor: not-allowed; }
+.applyBtnSecondary {
+  flex: 1 1 auto;
+  min-height: 36px;
+  padding: 8px 16px;
+  border: 1px solid var(--structure-emphasis);
+  border-radius: var(--radius-sm);
+  background: var(--raised);
+  color: var(--ink);
+  font-weight: 600;
+  font-size: calc(12px + var(--text-size-offset));
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  text-align: center;
+}
+.applyBtnSecondary:disabled { opacity: 0.45; cursor: not-allowed; }
+.deferBtn {
+  min-height: 36px;
+  padding: 8px 14px;
+  border: 1px solid var(--structure-emphasis);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  color: var(--ink-soft);
+  font-size: calc(12px + var(--text-size-offset));
+  font-weight: 500;
+  cursor: pointer;
+  text-align: center;
+}
+.deferBtn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Difference table comparison */
+.compareTableContainer {
+  border: 1px solid var(--structure-emphasis);
+  border-radius: var(--radius-core);
+  overflow: hidden;
+  background: var(--raised);
+}
+.compareTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: calc(12px + var(--text-size-offset));
+  text-align: left;
+}
+.compareTable th,
+.compareTable td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--structure);
+}
+.cornerHeader {
+  width: 26%;
+  background: var(--surface-subtle);
+}
+.compareColHeader {
+  background: var(--surface-subtle);
+  font-weight: 650;
+  vertical-align: top;
+  width: 37%;
+  border-left: 1px solid var(--structure);
+  transition: background var(--motion-hover) var(--motion);
+}
+.compareColHeader[data-selected='true'] {
+  background: color-mix(in srgb, var(--accent-soft) 40%, var(--surface-subtle));
+}
+.compareColTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.compareColRadioLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: var(--ink);
+  font-weight: 650;
+}
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+.compareColDifferentiator {
+  font-size: calc(10.5px + var(--text-size-offset));
+  font-weight: 400;
+  color: var(--muted-readable);
+  margin-top: 2px;
+}
+.diffRow {
+  transition: background var(--motion-hover) var(--motion);
+}
+.diffRow:hover {
+  background: color-mix(in srgb, var(--accent-soft) 25%, var(--raised));
+}
+.teacherCell {
+  color: var(--ink);
+  vertical-align: middle;
+}
+.teacherCellContent {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.teacherName {
+  font-weight: 600;
+  font-size: calc(12px + var(--text-size-offset));
+}
+.operationalSpan {
+  font-family: var(--font-mono);
+  font-size: calc(10.5px + var(--text-size-offset));
+  color: var(--muted-readable);
+}
+.optionCell {
+  font-family: var(--font-mono);
+  font-size: calc(11.5px + var(--text-size-offset));
+  color: var(--ink);
+  text-align: left;
+  border-left: 1px solid var(--structure);
+  cursor: pointer;
+  transition: background var(--motion-hover) var(--motion), color var(--motion-hover) var(--motion);
+}
+.optionCell:hover {
+  background: var(--accent-soft) !important;
+  color: var(--accent-readable);
+}
+.metricRow {
+  background: var(--surface-subtle);
+  font-size: calc(11px + var(--text-size-offset));
+}
+.metricLabelCell {
+  color: var(--muted-readable);
+  font-weight: 500;
+  padding: 6px 10px;
+}
+.metricValueCell {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--ink);
+  padding: 6px 10px;
+  border-left: 1px solid var(--structure);
+}
+
+.agentNoteRow {
+  padding: 2px 0 6px;
+}
+
+/* Progressive disclosures */
+.cleanDisclosure {
+  border-top: 1px solid var(--structure);
+  padding: 6px 0;
+}
+.disclosureSummary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: calc(12px + var(--text-size-offset));
+  font-weight: 550;
+  color: var(--ink-soft);
+  list-style: none;
+  user-select: none;
+  padding: 4px 0;
+}
+.disclosureSummary::-webkit-details-marker {
+  display: none;
+}
+.disclosureArrow {
+  display: inline-block;
+  font-size: 10px;
+  color: var(--muted-readable);
+  transition: transform 0.15s;
+}
+.cleanDisclosure[open] > .disclosureSummary > .disclosureArrow {
+  transform: rotate(90deg);
+}
+.disclosureSummary:hover {
+  color: var(--accent);
+}
+.disclosureBody {
+  padding: 8px 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.detailsBadge {
+  font-size: calc(10.5px + var(--text-size-offset));
+  color: var(--muted-readable);
+  font-weight: 400;
+}
+.refineControlsRow {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+/* Context slot elements */
 .slotHeading {
   margin: 0 0 6px;
   font-family: inherit;
@@ -760,15 +1052,21 @@ button:hover > .ctaIcon { transform: translate(2px, -1px) scale(1.06); }
 .unknownList li { color: var(--warning-readable); font-size: calc(11px + var(--text-size-offset)); }
 .priorNote { color: var(--muted-readable); font-size: calc(10.5px + var(--text-size-offset)); }
 
-/* Slot 3 — 方案比较. Cards only for the genuinely independent objects. */
-.optionsColumn { min-width: 0; display: grid; gap: 10px; align-content: start; }
-.compareTable { width: 100%; border-collapse: collapse; font-size: calc(11.5px + var(--text-size-offset)); }
-.compareTable th,
-.compareTable td { padding: 5px 8px; border-bottom: 1px solid var(--structure); text-align: left; }
-.compareTable thead th { color: var(--muted-readable); font-weight: 600; }
-.compareTable tbody td:first-child { color: var(--muted-readable); }
-.compareTable th + th,
-.compareTable td + td { text-align: right; font-family: var(--font-mono); }
+.quietRecommended {
+  font-size: calc(10.5px + var(--text-size-offset));
+  font-weight: 400;
+  color: var(--muted-readable);
+  margin-left: 2px;
+}
+.changeRowItem {
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  transition: background var(--motion-hover) var(--motion), color var(--motion-hover) var(--motion);
+}
+.changeRowItem:hover {
+  background: color-mix(in srgb, var(--accent-soft) 40%, var(--raised));
+  cursor: pointer;
+}
 .optionBlock {
   display: grid;
   gap: 6px;
@@ -783,26 +1081,22 @@ button:hover > .ctaIcon { transform: translate(2px, -1px) scale(1.06); }
 .optionHead input { accent-color: var(--accent); }
 .quietNote { margin: 0; color: var(--muted-readable); font-size: calc(11px + var(--text-size-offset)); line-height: 1.4; }
 
-/* Slot 4 — 共同部分, listed once with its own apply affordance. */
 .commonBlock {
   display: grid;
   gap: 6px;
   padding-top: 10px;
-  border-top: 1px dashed var(--structure);
 }
 .commonActionRow { display: flex; justify-content: flex-end; }
 .commonActionRow button { min-height: 30px; padding-inline: 14px; }
 
-/* Slot 5 — 需要你确认. */
 .confirmSection {
   display: grid;
   gap: 8px;
-  margin-top: 14px;
-  padding-top: 10px;
+  margin-top: 8px;
+  padding-top: 8px;
   border-top: 1px solid var(--structure);
 }
 
-/* Slot 7 — 动作行: weakest visual weight on the page. */
 .decisionActions {
   display: flex;
   flex-wrap: wrap;
@@ -836,7 +1130,6 @@ button:hover > .ctaIcon { transform: translate(2px, -1px) scale(1.06); }
 }
 .decisionActionButtons button:disabled { opacity: .45; }
 
-/* Evidence layer — collapsed 调查过程, technical detail only. */
 .evidenceBlock { margin-top: 12px; }
 .evidenceBlock > summary {
   cursor: pointer;
@@ -861,3 +1154,4 @@ button:hover > .ctaIcon { transform: translate(2px, -1px) scale(1.06); }
 .revisionBlock { margin-top: 10px; display: grid; gap: 6px; }
 .revisionBlock p, .revisionBlock li { margin: 0; font-size: calc(13px + var(--text-size-offset)); line-height: 1.45; }
 .revisionBlock ul { margin: 0; padding-left: 1.2em; }
+

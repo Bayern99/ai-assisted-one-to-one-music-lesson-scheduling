@@ -10,6 +10,7 @@ import { FinalizeDialog } from '../components/FinalizeDialog'
 import type { Issue } from '../components/IssueQueue'
 import type { ResolutionSelectionContext } from '../components/ResolutionCaseCard'
 import { ResolutionPanel } from '../components/ResolutionPanel'
+import { type ReconciliationHighlight } from '../components/PiReconciliationPanel'
 import { clockToMinutes, ScheduleGrid, type PresentationBounds } from '../components/ScheduleGrid'
 import { buildTeacherSegments, teacherSegmentKey, type SchedulePresentationMode, type TeacherSegment } from '../components/teacherPresentation'
 import { TeacherBlockPanel } from '../components/TeacherBlockPanel'
@@ -124,6 +125,7 @@ export function ResolvePage() {
     searchParams.get('workspace') === 'schedule' ? 'lessons' : 'teachers',
   )
   const [selectedTeacherKey, setSelectedTeacherKey] = useState<string | null>(null)
+  const [reconciliationHighlight, setReconciliationHighlight] = useState<ReconciliationHighlight>(null)
   const workspaceMode = searchParams.get('workspace') === 'schedule' ? 'schedule' : 'reconciliation'
   const [queueWidths, setQueueWidths] = useState(() => ({
     schedule: storedQueueWidth('schedule'),
@@ -674,6 +676,7 @@ export function ResolvePage() {
           onDayChange={changeDay}
           onDragEnd={() => setDraggingIssue(null)}
           onDragStart={beginIssueDrag}
+          onHighlightChange={setReconciliationHighlight}
           onSelect={selectIssue}
           onToggleReadingExpanded={workspaceMode === 'reconciliation' ? toggleReadingExpanded : undefined}
           onUseOption={useResolutionOption}
@@ -710,6 +713,7 @@ export function ResolvePage() {
             onSelect={workspaceMode === 'reconciliation' || presentationMode === 'teachers' ? () => {} : selectGridAssignment}
             onSelectSegment={presentationMode === 'teachers' ? selectTeacherSegment : undefined}
             presentationMode={presentationMode}
+            reconciliationHighlight={reconciliationHighlight}
             reservationMarkers={reservationMarkers}
             rooms={displayRooms}
             selectedId={selected?.id ?? null}

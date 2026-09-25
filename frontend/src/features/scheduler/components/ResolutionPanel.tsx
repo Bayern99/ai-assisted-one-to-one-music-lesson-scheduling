@@ -13,7 +13,7 @@ import type { MoveTarget } from '../hooks/useAssignmentCommands'
 import { isReservationInternal } from '../scheduleAuthority'
 import { IssueQueue, type Issue } from './IssueQueue'
 import { PianoLeverageCard } from './PianoLeverageCard'
-import { PiReconciliationPanel } from './PiReconciliationPanel'
+import { PiReconciliationPanel, type ReconciliationHighlight } from './PiReconciliationPanel'
 import { DraftReviewCard } from './DraftReviewCard'
 import { ResolutionCaseCard, type ResolutionSelectionContext } from './ResolutionCaseCard'
 import layoutStyles from '../issueQueue.module.css'
@@ -28,6 +28,7 @@ interface ResolutionPanelProps {
   onDayChange: (day: number) => void
   onDragEnd: () => void
   onDragStart: (issue: Issue) => void
+  onHighlightChange?: (highlight: ReconciliationHighlight) => void
   onSelect: (issue: Issue, context?: ResolutionSelectionContext) => void
   onToggleReadingExpanded?: () => void
   onUseOption: (issue: Issue, target: MoveTarget, context?: ResolutionSelectionContext) => void
@@ -151,6 +152,7 @@ export const ResolutionPanel = forwardRef<HTMLElement, ResolutionPanelProps>(fun
             disabled={props.disabled || waitingMutation.isPending || leverageMutation.isPending || !advice.pi_available}
             investigation={advice.pi_reconciliation?.day === props.activeDay ? advice.pi_reconciliation : null}
             isReadingExpanded={props.isReadingExpanded}
+            onHighlightChange={props.onHighlightChange}
             onToggleReadingExpanded={props.onToggleReadingExpanded}
             piRuntime={advice.pi_runtime}
             workspaceVersion={props.workspaceVersion}

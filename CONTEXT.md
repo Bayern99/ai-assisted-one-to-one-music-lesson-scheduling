@@ -1,6 +1,6 @@
 # AI-Assisted One-to-One Music Lesson Scheduling
 
-Desktop workspace for auditable one-to-one music-instruction scheduling. This glossary is the occupancy, Step 4, and rules-layer judgement language for the 4.7–4.8.2 work. It is not an implementation spec.
+Desktop workspace for auditable one-to-one music-instruction scheduling. This glossary is the occupancy, Step 4, and rules-layer judgement language for the 4.7–4.8.3 work. It is not an implementation spec.
 
 ## Language
 
@@ -59,3 +59,15 @@ _Avoid_: Treating the whole goal string as a lock; protecting every named teache
 **PI Reconciliation locale**:
 Chinese/English chrome for the PI Reconciliation panel only (`zh` default, persisted). Known server labels and revision codes are localized in the client; model questions stay as written. The rest of the dashboard is already English.
 _Avoid_: Whole-app i18n; translating `focus.question` / rationale; assuming English is the panel default
+
+**Decision Surface Architecture**:
+PI Reconciliation is an operational change-review surface, not a solver dashboard. The primary decision unit is the concrete proposed change row: `Teacher | Time span | From room → To room`. Operational time spans aggregate consecutive teacher lessons without losing exact room transition fidelity. Summaries (moves count, placed lessons) remain secondary.
+_Avoid_: KPI cards as primary content; scattering teacher, time, and room across separate tables; forcing mental reconstruction of moves.
+
+**Contextual Timetable Verification**:
+Temporary, dynamic linkage between the left-side decision surface and the right-side timetable. Hovering or selecting a change row highlights the affected teacher's exact lesson blocks and room positions on the production timetable.
+_Avoid_: Permanent visual clutter or arrows on the timetable; redesigning the production timetable layout.
+
+**Difference-first Matrix**:
+In A/B comparison mode, the matrix emphasizes points of divergence between candidate packages. Each option column displays its own concrete assignment (e.g. `CC322 → CC405` vs `CC322 → CC407`) rather than comparative diff strings (`X vs Y`).
+_Avoid_: Merged cell diff strings; over-tinted comparison cards; strong visual bias that diminishes comparison clarity.

@@ -124,10 +124,11 @@ interface AssignmentBlockProps {
   onKeyDown?: React.KeyboardEventHandler<HTMLButtonElement>
   onSelect: (id: string) => void
   placement?: CSSProperties
+  reconciliationHighlight?: 'source' | 'destination' | null
   selected: boolean
 }
 
-export function AssignmentBlock({ assignment, dragDisabled, issueMatch, onKeyDown, onSelect, placement, selected }: AssignmentBlockProps) {
+export function AssignmentBlock({ assignment, dragDisabled, issueMatch, onKeyDown, onSelect, placement, reconciliationHighlight, selected }: AssignmentBlockProps) {
   const view = adaptAssignment(assignment)
   const kindLabel = view.isLecture ? 'Lecture' : view.kind === 'locked' ? 'Locked' : view.kind === 'studio' ? 'Studio' : 'Weekly'
   const visibleTime = `${clockLabel(view.start)}–${clockLabel(view.end)}`
@@ -148,6 +149,7 @@ export function AssignmentBlock({ assignment, dragDisabled, issueMatch, onKeyDow
       data-issue-match={issueMatch ? 'true' : undefined}
       data-kind={view.kind}
       data-lecture={view.isLecture ? 'true' : undefined}
+      data-reconciliation-highlight={reconciliationHighlight ?? undefined}
       data-room={view.room ?? undefined}
       onClick={() => { if (!view.isLecture) onSelect(view.id) }}
       onKeyDown={view.isLecture ? undefined : onKeyDown}
