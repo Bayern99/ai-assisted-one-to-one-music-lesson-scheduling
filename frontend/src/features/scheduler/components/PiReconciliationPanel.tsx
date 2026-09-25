@@ -241,7 +241,6 @@ function groupTeacherMoves(changes: ChangeRow[] | undefined, c: Copy): TeacherMo
       && previous.fromRoom === row.fromRoom
       && previous.toRoom === row.toRoom
       && previous.action === row.action
-      && previous.end === row.start
     ) {
       previous.end = row.end
       continue
@@ -1357,7 +1356,7 @@ export function PiReconciliationPanel({
     return <div className={styles.focusBlock}>
       <span className={styles.statusChip} data-status={statusKey}>{statusLabel(c, statusKey)}</span>
       <h3 className={styles.focusQuestion}>{question}</h3>
-      {interrupted ? (
+      {interrupted && options.length < 2 ? (
         <div className={styles.interruptedCallout} role="status">
           <strong>{c.interruptedTitle}</strong>
           <p>{isRuntimeTimeout ? c.interruptedTimeout : c.interruptedBudget}</p>

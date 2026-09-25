@@ -279,6 +279,25 @@ def _places_unresolved(public):
     return int(metrics.get("sacrificed_assignments") or 0) > 0
 
 
+def _outcome_key(public):
+    rows = []
+    for change in (public or {}).get("changes") or []:
+        if not isinstance(change, dict):
+            continue
+        to = change.get("to") or {}
+        start = str(to.get("start") or "").strip()[:5]
+        end = str(to.get("end") or "").strip()[:5]
+        rows.append((
+            str(change.get("subject_alias") or ""),
+            str(change.get("action") or ""),
+            str(to.get("room") or ""),
+            str(to.get("day") or ""),
+            start,
+            end,
+        ))
+    return sorted(rows)
+
+
 class ReconciliationInvestigation:
     """One immutable Step 4 investigation session."""
 
@@ -1991,6 +2010,20 @@ class ReconciliationInvestigation:
         )
         primary = placing[0] if placing else None
         primary_id = str(((primary or {}).get("public") or {}).get("simulation_id") or "") or None
+        primary_hash = ((primary or {}).get("public") or {}).get("package_hash")
+        primary_outcome = _outcome_key((primary or {}).get("public") or {})
+
+        fallback = None
+        if len(placing) > 1:
+            for candidate in placing[1:]:
+                cand_pub = candidate.get("public") or {}
+                if cand_pub.get("package_hash") != primary_hash and _outcome_key(cand_pub) != primary_outcome:
+                    fallback = candidate
+                    break
+            if fallback is None and len(placing) > 1:
+                fallback = placing[1]
+        fallback_id = str(((fallback or {}).get("public") or {}).get("simulation_id") or "") or None
+
         public = (primary or {}).get("public") or {}
         if primary is not None:
             expected = {
@@ -2011,28 +2044,36 @@ class ReconciliationInvestigation:
             }
             for alias in sorted(expected)
         ]
-        return self.submit_reconciliation_brief(
-            {
-                "termination": "budget_exhausted",
-                "primary_simulation_id": primary_id or "",
-                "title": "调查中断，但已有可用方案" if primary_id else "调查达到上限",
-                "focus_question": (
+        brief_data = {
+            "termination": "budget_exhausted",
+            "primary_simulation_id": primary_id or "",
+            "title": "从两个可行方案中选择" if primary_id and fallback_id else ("调查中断，但已有可用方案" if primary_id else "调查达到上限"),
+            "focus_question": (
+                "需要在两个可行方案之间做选择。"
+                if primary_id and fallback_id
+                else (
                     "调查在达到上限前被中断；已验证的方案仍可应用，未覆盖的部分需要重新调查。"
                     if primary_id
                     else "调查在达到上限前被中断，没有形成可执行方案；已完成的检查保留作参考。"
-                ),
-                "rationale": (
+                )
+            ),
+            "rationale": (
+                "搜索已验证多个可以减少未排课时的方案，提供 A/B 对比供排课员决策。"
+                if primary_id and fallback_id
+                else (
                     "搜索在中断前已验证一个可以减少未排课时的方案，可直接应用。"
                     if primary_id
                     else "搜索在中断前没有完成。已完成的沙箱检查结果保留；未覆盖的路径不能证明今天无法安排。"
-                ),
-                "limitations": [
-                    f"在达到上限前共进行了 {self._tool_calls} 次探索调用。"
-                ],
-                "remaining_issues": remaining_issues,
-            },
-            bound_hit=True,
-        )
+                )
+            ),
+            "limitations": [
+                f"在达到上限前共进行了 {self._tool_calls} 次探索调用。"
+            ],
+            "remaining_issues": remaining_issues,
+        }
+        if fallback_id:
+            brief_data["fallback_simulation_id"] = fallback_id
+        return self.submit_reconciliation_brief(brief_data, bound_hit=True)
 
     def set_decision(self, decision, *, note=""):
         if self._brief is None:

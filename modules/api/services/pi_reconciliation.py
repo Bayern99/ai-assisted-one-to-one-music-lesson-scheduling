@@ -1271,8 +1271,21 @@ def build_decision_brief(record, runtime):
     if not brief:
         return None
     snapshot = investigation._snapshot or {}
-    rules = snapshot.get("rules") or {}
-    simulations = record.get("simulations") if isinstance(record.get("simulations"), dict) else {}
+    raw_simulations = record.get("simulations")
+    simulations = {}
+    if isinstance(raw_simulations, dict):
+        simulations = raw_simulations
+    elif isinstance(raw_simulations, list):
+        for item in raw_simulations:
+            if isinstance(item, dict):
+                sim_id = item.get("simulation_id")
+                if sim_id:
+                    if "public" in item and isinstance(item["public"], dict):
+                        simulations[str(sim_id)] = item
+                    else:
+                        simulations[str(sim_id)] = {"public": item}
+    if not simulations and getattr(investigation, "_simulations", None):
+        simulations = investigation._simulations
 
     def public_of(simulation_id):
         item = simulations.get(str(simulation_id))
@@ -1311,6 +1324,51 @@ def build_decision_brief(record, runtime):
     if len(options) == 2 and options[0]["_outcome"] == options[1]["_outcome"]:
         # Identical outcomes are one choice, not two.
         options = options[:1]
+
+    if len(options) == 1:
+        # If we have only 1 option (e.g. fallback was omitted or duplicate),
+        # look for any other distinct feasible simulation to provide Option B
+        primary_sim_id = options[0]["simulation_id"]
+        candidates = []
+        for other_id, other_sim in simulations.items():
+            if str(other_id) == primary_sim_id:
+                continue
+            other_pub = other_sim.get("public") if isinstance(other_sim, dict) else None
+            if not other_pub or other_pub.get("status") not in {"feasible", "conditional"}:
+                continue
+            outcome = _outcome_key(other_pub)
+            if outcome == options[0]["_outcome"]:
+                continue
+            candidates.append((str(other_id), other_pub, outcome))
+        if candidates:
+            # Pick best alternative by resolved_delta descending, then room_switches ascending
+            candidates.sort(
+                key=lambda x: (
+                    -int((x[1].get("metrics") or {}).get("resolved_delta") or 0),
+                    int((x[1].get("metrics") or {}).get("room_switches") or 0),
+                )
+            )
+            best_fallback_id, best_pub, best_outcome = candidates[0]
+            options.append({
+                "option_id": "b",
+                "source": "fallback",
+                "simulation_id": best_fallback_id,
+                "changes": copy.deepcopy(best_pub.get("changes") or []),
+                "metrics": copy.deepcopy(best_pub.get("metrics") or {}),
+                "required_teacher_aliases": [
+                    str(item.get("teacher_alias") or "")
+                    for item in (best_pub.get("required_teacher_confirmations") or [])
+                    if isinstance(item, dict) and item.get("teacher_alias")
+                ],
+                "sacrifice_aliases": [
+                    str(item.get("subject_alias") or "")
+                    for item in (best_pub.get("sacrifices") or [])
+                    if isinstance(item, dict) and item.get("subject_alias")
+                ],
+                "_outcome": best_outcome,
+                "_normalized": copy.deepcopy(best_pub.get("normalized_changes") or []),
+                "_remaining": _remaining_phrase(best_pub, investigation._teacher_display or {}),
+            })
 
     common = None
     common_changes = []
@@ -1360,12 +1418,16 @@ def build_decision_brief(record, runtime):
         status = "missing_info"
     else:
         status = "ready"
-    question = str(brief.get("focus_question") or "").strip() or {
-        "ready": "这个方案已经通过验证，可以直接执行。",
-        "choice": "需要在两个可行方案之间做选择。",
-        "missing_info": "还缺少可能改变结论的信息，暂不宜直接执行。",
-        "no_package": "当前没有可行的完整方案。",
-    }[status]
+    question = str(brief.get("focus_question") or "").strip()
+    if status == "choice" and (not question or "中断" in question or "Search cap" in question or "上限" in question):
+        question = "需要在两个可行方案之间做选择。"
+    elif not question:
+        question = {
+            "ready": "这个方案已经通过验证，可以直接执行。",
+            "choice": "需要在两个可行方案之间做选择。",
+            "missing_info": "还缺少可能改变结论的信息，暂不宜直接执行。",
+            "no_package": "当前没有可行的完整方案。",
+        }[status]
     for option in options:
         option.pop("_outcome", None)
         option.pop("_normalized", None)

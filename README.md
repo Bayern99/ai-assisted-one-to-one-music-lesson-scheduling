@@ -4,7 +4,7 @@ Local workspace for building one-to-one music-lesson timetables in a higher-educ
 
 The central student-record and room-booking systems stay the record of truth. This app is a local coordination layer for demo and research: it produces a checked timetable you can hand over.
 
-Version: `0.1.0`.
+Version: `0.1.1`.
 
 ## Platform
 
