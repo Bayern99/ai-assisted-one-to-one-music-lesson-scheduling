@@ -2,6 +2,13 @@
 
 Research demonstration of one-to-one music-lesson scheduling. Jury and assessment are out of scope. Python is the sole scheduling/validation authority; an investigator may propose but cannot write the ledger.
 
+## Testing
+
+- NEVER write unit tests after you write code.
+- Highly prefer E2E tests as the sole testing mechanism. Use them to verify complex features work. At the end of E2E tests, produce a verifiable and repeatable artifact.
+- If you must test a system in isolation, FIRST write all the ways it could fail, THEN write the code.
+- Do not run the full E2E suite during development. Run it only when the work is finished.
+
 ## Ground truth
 
 - Inspect the current repository, configuration, tests, and Git state before acting. Use [README.md](README.md) for the product overview.
